@@ -1,0 +1,5 @@
+{
+  "name": "ConcretePOA",
+  "description": "AI-powered Power of Attorney (POA) audit platform to mitigate the 'Caregiver's Trap' by checking documents against bank-specific compliance requirements.",
+  "requestFramePermissions": []
+}

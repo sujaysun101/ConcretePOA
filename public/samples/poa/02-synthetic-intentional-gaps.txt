@@ -1,0 +1,17 @@
+GENERAL POWER OF ATTORNEY (SYNTHETIC — INTENTIONAL GAPS FOR TESTING)
+Principal: Taylor Test
+Agent: Morgan Helper
+
+I grant my agent authority to manage my accounts.
+
+I want my agent to change beneficiaries on my accounts and make gifts to family members as needed.
+
+This document is not durable. If I become incapacitated, this document may cease to help my agent.
+
+Signed: Taylor Test
+Date: January 2, 2019
+
+Witness:
+________________ Pat Witness
+
+(Note: No notary block; old date; broad gifting language without statutory rider — use to test bank-mode and risk scoring.)
