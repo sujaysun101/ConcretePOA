@@ -48,6 +48,51 @@ export const JURISDICTION_HINTS: Record<
     ],
     notes: 'Texas durable POA notices are a common statutory drift vector.',
   },
+  IL: {
+    topics: [
+      'Illinois Statutory Short Form Power of Attorney for Property',
+      'Witness requirements (one disinterested witness)',
+      'Agent certification and acceptance',
+      'Specific powers for real estate, banking, and investment management',
+    ],
+    notes: 'Illinois revised its statutory short form in 2012; verify which version governs. Agent certification page is mandatory for some institutions.',
+  },
+  PA: {
+    topics: [
+      'Two witnesses + notary required under 2015 revisions',
+      'Notice to principal (verbatim statutory language)',
+      'Agent acknowledgment form',
+      'Specific powers for financial institutions vs real property',
+    ],
+    notes: 'Pennsylvania overhauled its POA law in 2015. Older documents may lack the mandated notices and agent acknowledgment. High friction at banks for pre-2015 docs.',
+  },
+  OH: {
+    topics: [
+      'Durable language explicit ("not affected by disability")',
+      'Notary acknowledgment per ORC Chapter 1337',
+      'Agent acceptance for Ohio statutory form',
+      'Recording requirements for real property transactions',
+    ],
+    notes: 'Ohio adopted a modernized UPOAA-based statute; verify execution formalities match the version in effect at execution.',
+  },
+  GA: {
+    topics: [
+      'Two witnesses + notary required',
+      'Specific banking powers enumerated',
+      'Self-proving affidavit for ease of acceptance',
+      'Gifts to agent restrictions',
+    ],
+    notes: 'Georgia institutions are strict about the two-witness requirement; a single witness makes the document vulnerable to rejection.',
+  },
+  WA: {
+    topics: [
+      'Washington adopted UPOAA with modifications',
+      'Notice requirement if statutory form used',
+      'Agent\'s certificate of authority',
+      'Community property considerations for married principals',
+    ],
+    notes: 'Washington community property rules create additional complexity when agent acts on accounts that may be community property.',
+  },
   Generic: {
     topics: [
       'Identify governing law clause',

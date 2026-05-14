@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { useAuth, UserButton } from '@clerk/clerk-react';
 import { useDropzone } from 'react-dropzone';
+import LandingPage from './components/LandingPage';
 import { 
   FileUp, 
   ShieldCheck, 
@@ -38,6 +40,24 @@ import { BANK_REQUIREMENTS } from './constants';
 const PREDEFINED_BANKS: Bank[] = ['Chase', 'Wells Fargo', 'Fidelity', 'Schwab', 'Vanguard', 'Bank of America'];
 
 export default function App() {
+  const { isSignedIn, isLoaded } = useAuth();
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400" />
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return <LandingPage />;
+  }
+
+  return <AppShell />;
+}
+
+function AppShell() {
   const [file, setFile] = useState<File | null>(null);
   const [targetBank, setTargetBank] = useState<Bank | ''>('');
   const [customRules, setCustomRules] = useState('');
@@ -323,6 +343,7 @@ export default function App() {
                 Enterprise Access
               </a>
             </div>
+            <UserButton afterSignOutUrl="/" />
           </div>
         </div>
       </header>

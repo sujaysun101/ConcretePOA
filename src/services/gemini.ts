@@ -6,13 +6,13 @@ import {
 } from "../data/knowledgeContext";
 import { AuditResult, Bank, RejectionDiagnosis, JurisdictionResult } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY ?? process.env.GEMINI_API_KEY! });
 
 export async function trackJurisdictionalLaw(
   fileBase64: string,
   mimeType: string
 ): Promise<JurisdictionResult> {
-  const model = "gemini-3.1-pro-preview";
+  const model = "gemini-2.0-flash";
   
   const prompt = `
     ${jurisdictionKnowledgePreamble()}
@@ -111,12 +111,14 @@ export async function auditPOA(
   targetBank: Bank, 
   customRules?: string
 ): Promise<AuditResult> {
-  const model = "gemini-3.1-pro-preview";
+  const model = "gemini-2.0-flash";
   
   const prompt = `
+    ${auditKnowledgePreamble(targetBank)}
+
     You are a Senior Banking Compliance Auditor & Elder Law Technical Specialist for "ConcretePOA".
     Analyze the provided Power of Attorney (POA) document against the requirements for ${targetBank}.
-    
+
     ${customRules ? `ADDITIONAL CUSTOM RULES TO AUDIT AGAINST: "${customRules}"` : ''}
 
     OPERATIONAL PROTOCOLS:
@@ -212,7 +214,7 @@ export async function diagnoseRejection(
   rejectionBase64: string,
   rejectionMimeType: string
 ): Promise<RejectionDiagnosis> {
-  const model = "gemini-3.1-pro-preview";
+  const model = "gemini-2.0-flash";
   
   const prompt = `
     ${rejectionKnowledgePreamble()}
