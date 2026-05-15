@@ -2,13 +2,13 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useAuth, UserButton } from '@clerk/clerk-react';
 import { useDropzone } from 'react-dropzone';
 import LandingPage from './components/LandingPage';
-import { 
-  FileUp, 
-  ShieldCheck, 
-  AlertCircle, 
-  Loader2, 
-  ChevronRight, 
-  Building2, 
+import {
+  FileUp,
+  ShieldCheck,
+  AlertCircle,
+  Loader2,
+  ChevronRight,
+  Building2,
   ArrowLeft,
   Search,
   CheckCircle2,
@@ -39,7 +39,7 @@ import { BANK_REQUIREMENTS } from './constants';
 
 const PREDEFINED_BANKS: Bank[] = ['Chase', 'Wells Fargo', 'Fidelity', 'Schwab', 'Vanguard', 'Bank of America'];
 
-export default function App() {
+function AuthGatedApp() {
   const { isSignedIn, isLoaded } = useAuth();
 
   if (!isLoaded) {
@@ -51,13 +51,20 @@ export default function App() {
   }
 
   if (!isSignedIn) {
-    return <LandingPage />;
+    return <LandingPage clerkEnabled />;
   }
 
-  return <AppShell />;
+  return <AppShell clerkEnabled />;
 }
 
-function AppShell() {
+export default function App({ clerkEnabled = false }: { clerkEnabled?: boolean }) {
+  if (!clerkEnabled) {
+    return <LandingPage clerkEnabled={false} />;
+  }
+  return <AuthGatedApp />;
+}
+
+function AppShell({ clerkEnabled }: { clerkEnabled: boolean }) {
   const [file, setFile] = useState<File | null>(null);
   const [targetBank, setTargetBank] = useState<Bank | ''>('');
   const [customRules, setCustomRules] = useState('');
@@ -343,7 +350,7 @@ function AppShell() {
                 Enterprise Access
               </a>
             </div>
-            <UserButton afterSignOutUrl="/" />
+            {clerkEnabled && <UserButton afterSignOutUrl="/" />}
           </div>
         </div>
       </header>
