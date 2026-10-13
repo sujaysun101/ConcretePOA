@@ -37,6 +37,13 @@ import { useAuth } from './auth/AuthContext';
 import { auditPOA, diagnoseRejection, trackJurisdictionalLaw } from './services/gemini';
 import { AuditResult, Bank, BankRequirement, RejectionDiagnosis, JurisdictionResult } from './types';
 import { cn } from './lib/utils';
+import {
+  ACCEPTED_INPUT_ATTR,
+  ACCEPTED_UPLOAD_LABEL,
+  ACCEPTED_UPLOAD_TYPES,
+  isDocxFile,
+  prepareDocument,
+} from './lib/document';
 import { BANK_REQUIREMENTS } from './constants';
 
 const PREDEFINED_BANKS: Bank[] = ['Chase', 'Wells Fargo', 'Fidelity', 'Schwab', 'Vanguard', 'Bank of America'];
@@ -65,6 +72,7 @@ export default function App() {
   const [dbSearchQuery, setDbSearchQuery] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [docxPreviewText, setDocxPreviewText] = useState<string | null>(null);
   
   // Custom Banks State
   const [customBanks, setCustomBanks] = useState<BankRequirement[]>([]);
@@ -141,20 +149,32 @@ export default function App() {
       const selectedFile = acceptedFiles[0];
       setFile(selectedFile);
       setError(null);
-      
-      // Create preview URL
-      const url = URL.createObjectURL(selectedFile);
-      setPreviewUrl(url);
+      setDocxPreviewText(null);
+
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+
+      if (isDocxFile(selectedFile)) {
+        setPreviewUrl(null);
+        prepareDocument(selectedFile)
+          .then((doc) => {
+            if (doc.kind === 'text') setDocxPreviewText(doc.text);
+          })
+          .catch((err) => {
+            console.error(err);
+            setError(err instanceof Error ? err.message : 'Failed to read DOCX file.');
+          });
+      } else {
+        setPreviewUrl(URL.createObjectURL(selectedFile));
+      }
     }
-  }, []);
+  }, [previewUrl]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'image/*': ['.png', '.jpg', '.jpeg']
-    },
-    multiple: false
+    accept: { ...ACCEPTED_UPLOAD_TYPES },
+    multiple: false,
   });
 
   const handleAudit = async () => {
@@ -170,23 +190,17 @@ export default function App() {
     setError(null);
 
     try {
-      const readFile = (f: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(f);
-        });
-      };
-
-      const poaBase64 = await readFile(file);
+      setProgressText(
+        isDocxFile(file) ? 'Extracting DOCX text…' : 'Reading document…'
+      );
+      const poaDocument = await prepareDocument(file);
       setAuditProgress(30);
       setProgressText('Extracting Document Logic...');
 
       if (auditMode === 'audit') {
         setAuditProgress(50);
         setProgressText(`Matching against ${targetBank} Compliance Matrix...`);
-        const auditResult = await auditPOA(poaBase64, file.type, targetBank as Bank, customRules);
+        const auditResult = await auditPOA(poaDocument, targetBank as Bank, customRules);
         setAuditProgress(90);
         setProgressText('Generating Remediation Blueprint...');
         
@@ -199,8 +213,8 @@ export default function App() {
       } else if (auditMode === 'diagnosis' && rejectionFile) {
         setAuditProgress(50);
         setProgressText('Cross-referencing Rejection Letter...');
-        const rejectionBase64 = await readFile(rejectionFile);
-        const diagnosis = await diagnoseRejection(poaBase64, file.type, rejectionBase64, rejectionFile.type);
+        const rejectionDocument = await prepareDocument(rejectionFile);
+        const diagnosis = await diagnoseRejection(poaDocument, rejectionDocument);
         setAuditProgress(90);
         setProgressText('Translating Legalese...');
         
@@ -213,7 +227,7 @@ export default function App() {
       } else if (auditMode === 'jurisdiction') {
         setAuditProgress(50);
         setProgressText('Comparing against 2026 Statutory Mandates...');
-        const jurisdictionRes = await trackJurisdictionalLaw(poaBase64, file.type);
+        const jurisdictionRes = await trackJurisdictionalLaw(poaDocument);
         setAuditProgress(90);
         setProgressText('Identifying Statutory Drift...');
         
@@ -226,7 +240,11 @@ export default function App() {
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to analyze document. Please ensure the file is clear and readable.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to analyze document. Please ensure the file is clear and readable.'
+      );
       setIsAuditing(false);
       setAuditProgress(0);
     }
@@ -280,6 +298,12 @@ export default function App() {
     setError(null);
     setShowHistory(false);
     setShowDatabase(false);
+    setShowPreview(false);
+    setDocxPreviewText(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
   };
 
   const allBankRequirements = [...BANK_REQUIREMENTS, ...customBanks];
@@ -686,9 +710,12 @@ export default function App() {
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setShowPreview(true);
+                                if (previewUrl || docxPreviewText) {
+                                  setShowPreview(true);
+                                }
                               }}
-                              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold hover:bg-emerald-200 transition-colors"
+                              disabled={!previewUrl && !docxPreviewText}
+                              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold hover:bg-emerald-200 transition-colors disabled:opacity-50"
                             >
                               <Eye className="w-3 h-3" />
                               Preview Document
@@ -697,7 +724,7 @@ export default function App() {
                         ) : (
                           <>
                             <p className="text-zinc-900 font-medium">Drop your POA document here</p>
-                            <p className="text-zinc-400 text-sm mt-1">PDF, PNG, or JPG (Max 10MB)</p>
+                            <p className="text-zinc-400 text-sm mt-1">{ACCEPTED_UPLOAD_LABEL}</p>
                           </>
                         )}
                       </div>
@@ -719,7 +746,7 @@ export default function App() {
                       onClick={() => {
                         const input = document.createElement('input');
                         input.type = 'file';
-                        input.accept = '.pdf,image/*';
+                        input.accept = ACCEPTED_INPUT_ATTR;
                         input.onchange = (e) => {
                           const files = (e.target as HTMLInputElement).files;
                           if (files && files.length > 0) {
@@ -742,7 +769,7 @@ export default function App() {
                           ) : (
                             <>
                               <p className="text-zinc-900 font-medium">Drop the Rejection Letter here</p>
-                              <p className="text-zinc-400 text-sm mt-1">PDF, PNG, or JPG (Max 10MB)</p>
+                              <p className="text-zinc-400 text-sm mt-1">{ACCEPTED_UPLOAD_LABEL}</p>
                             </>
                           )}
                         </div>
@@ -753,7 +780,7 @@ export default function App() {
 
                 {/* Preview Modal */}
                 <AnimatePresence>
-                  {showPreview && previewUrl && (
+                  {showPreview && (previewUrl || docxPreviewText) && (
                     <motion.div 
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -776,11 +803,15 @@ export default function App() {
                           </button>
                         </div>
                         <div className="flex-1 bg-zinc-100 p-6 overflow-auto flex items-center justify-center">
-                          {file?.type === 'application/pdf' ? (
+                          {docxPreviewText ? (
+                            <pre className="w-full h-full overflow-auto rounded-xl bg-white border border-zinc-200 p-6 text-sm text-zinc-800 whitespace-pre-wrap font-sans shadow-lg">
+                              {docxPreviewText}
+                            </pre>
+                          ) : file?.type === 'application/pdf' && previewUrl ? (
                             <iframe src={previewUrl} className="w-full h-full rounded-xl shadow-lg border border-zinc-200" />
-                          ) : (
+                          ) : previewUrl ? (
                             <img src={previewUrl} alt="POA Preview" className="max-w-full max-h-full object-contain rounded-xl shadow-lg" />
-                          )}
+                          ) : null}
                         </div>
                         <div className="p-6 border-t border-zinc-100 flex justify-end">
                           <button 
