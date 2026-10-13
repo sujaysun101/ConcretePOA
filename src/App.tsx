@@ -30,6 +30,10 @@ import { RejectionHistory } from './components/RejectionHistory';
 import { JurisdictionHistory } from './components/JurisdictionHistory';
 import { JurisdictionResults } from './components/JurisdictionResults';
 import { RejectionDiagnosisResult } from './components/RejectionDiagnosisResult';
+import { LoginPage } from './components/LoginPage';
+import { UserMenu } from './components/UserMenu';
+import { AdminPanel } from './components/AdminPanel';
+import { useAuth } from './auth/AuthContext';
 import { auditPOA, diagnoseRejection, trackJurisdictionalLaw } from './services/gemini';
 import { AuditResult, Bank, BankRequirement, RejectionDiagnosis, JurisdictionResult } from './types';
 import { cn } from './lib/utils';
@@ -38,6 +42,7 @@ import { BANK_REQUIREMENTS } from './constants';
 const PREDEFINED_BANKS: Bank[] = ['Chase', 'Wells Fargo', 'Fidelity', 'Schwab', 'Vanguard', 'Bank of America'];
 
 export default function App() {
+  const { isAuthenticated, isBootstrapping, session, canEditBankDatabase, canAccessAdmin } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [targetBank, setTargetBank] = useState<Bank | ''>('');
   const [customRules, setCustomRules] = useState('');
@@ -53,6 +58,7 @@ export default function App() {
   const [jurisdictionHistory, setJurisdictionHistory] = useState<JurisdictionResult[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showDatabase, setShowDatabase] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const [auditMode, setAuditMode] = useState<'audit' | 'diagnosis' | 'jurisdiction'>('audit');
   const [rejectionFile, setRejectionFile] = useState<File | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -283,22 +289,42 @@ export default function App() {
 
   const availableBanks = [...PREDEFINED_BANKS, ...customBanks.map(b => b.bank), 'Other'];
 
+  if (isBootstrapping) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-zinc-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 font-sans selection:bg-zinc-900 selection:text-white">
       {/* Header */}
       <header className="border-b border-zinc-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={reset}>
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => { reset(); setShowAdmin(false); setShowDatabase(false); setShowHistory(false); }}>
             <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
               <ShieldCheck className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-xl tracking-tight">ConcretePOA</span>
+            <div className="leading-tight">
+              <span className="font-bold text-xl tracking-tight block">ConcretePOA</span>
+              {session && (
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 hidden sm:block">
+                  {session.tenantName}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button 
               onClick={() => {
                 setShowHistory(!showHistory);
                 setShowDatabase(false);
+                setShowAdmin(false);
               }}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
@@ -306,30 +332,49 @@ export default function App() {
               )}
             >
               <History className="w-4 h-4" />
-              Audit History
+              <span className="hidden sm:inline">Audit History</span>
             </button>
-            <div className="hidden md:flex items-center gap-6 text-sm font-medium text-zinc-500 ml-4">
-              <button 
-                onClick={() => {
-                  setShowDatabase(!showDatabase);
-                  setShowHistory(false);
-                }}
-                className={cn("hover:text-zinc-900 transition-colors flex items-center gap-2", showDatabase ? "text-zinc-900" : "")}
-              >
-                <Database className="w-4 h-4" />
-                Bank Database
-              </button>
-              <a href="#" className="bg-zinc-900 text-white px-4 py-2 rounded-full hover:bg-zinc-800 transition-all">
-                Enterprise Access
-              </a>
-            </div>
+            <button 
+              onClick={() => {
+                setShowDatabase(!showDatabase);
+                setShowHistory(false);
+                setShowAdmin(false);
+              }}
+              className={cn(
+                "hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
+                showDatabase ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-100"
+              )}
+            >
+              <Database className="w-4 h-4" />
+              Bank Database
+            </button>
+            <UserMenu
+              onOpenAdmin={
+                canAccessAdmin
+                  ? () => {
+                      setShowAdmin(true);
+                      setShowHistory(false);
+                      setShowDatabase(false);
+                    }
+                  : undefined
+              }
+            />
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-12">
         <AnimatePresence mode="wait">
-          {showDatabase ? (
+          {showAdmin && canAccessAdmin ? (
+            <motion.div
+              key="admin"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <AdminPanel onBack={() => setShowAdmin(false)} />
+            </motion.div>
+          ) : showDatabase ? (
             <motion.div
               key="database"
               initial={{ opacity: 0, y: 20 }}
@@ -355,7 +400,9 @@ export default function App() {
                   </div>
                   <button 
                     onClick={() => setIsAddingBank(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-medium hover:bg-zinc-800 transition-colors"
+                    disabled={!canEditBankDatabase}
+                    title={canEditBankDatabase ? undefined : 'Tenant admin or higher required to add institutions'}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-medium hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <PlusCircle className="w-4 h-4" />
                     Add Custom Bank
