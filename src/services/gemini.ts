@@ -6,7 +6,20 @@ import {
 } from "../data/knowledgeContext";
 import { AuditResult, Bank, RejectionDiagnosis, JurisdictionResult } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+let ai: GoogleGenAI | null = null;
+
+function getAi(): GoogleGenAI {
+  if (!ai) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error(
+        "GEMINI_API_KEY is not set. Add it to .env.local and restart the dev server."
+      );
+    }
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+}
 
 export async function trackJurisdictionalLaw(
   fileBase64: string,
@@ -35,7 +48,7 @@ export async function trackJurisdictionalLaw(
     'overallComplianceScore' should be 0-100 based on how well it matches 2026 mandates.
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await getAi().models.generateContent({
     model,
     contents: [
       {
@@ -145,7 +158,7 @@ export async function auditPOA(
     Return the analysis in JSON format matching the AuditResult interface.
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await getAi().models.generateContent({
     model,
     contents: [
       {
@@ -233,7 +246,7 @@ export async function diagnoseRejection(
     Return the analysis in JSON format matching the RejectionDiagnosis interface.
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await getAi().models.generateContent({
     model,
     contents: [
       {
