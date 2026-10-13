@@ -13,13 +13,26 @@ import {
   type AuthSession,
   type Role,
 } from './types';
-import { login as loginService, logout as logoutService, readSession } from './authService';
+import {
+  login as loginService,
+  logout as logoutService,
+  readSession,
+  register as registerService,
+} from './authService';
+
+type AuthActionResult = { ok: true } | { ok: false; error: string };
 
 interface AuthContextValue {
   session: AuthSession | null;
   isAuthenticated: boolean;
   isBootstrapping: boolean;
-  login: (email: string, password: string) => { ok: true } | { ok: false; error: string };
+  login: (email: string, password: string) => AuthActionResult;
+  register: (input: {
+    email: string;
+    password: string;
+    confirmPassword: string;
+    tenantName?: string;
+  }) => AuthActionResult;
   logout: () => void;
   role: Role | null;
   canAccessAdmin: boolean;
@@ -38,14 +51,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsBootstrapping(false);
   }, []);
 
-  const login = useCallback((email: string, password: string) => {
+  const login = useCallback((email: string, password: string): AuthActionResult => {
     const result = loginService(email, password);
     if (result.ok === false) {
-      return { ok: false as const, error: result.error };
+      return { ok: false, error: result.error };
     }
     setSession(result.session);
-    return { ok: true as const };
+    return { ok: true };
   }, []);
+
+  const register = useCallback(
+    (input: {
+      email: string;
+      password: string;
+      confirmPassword: string;
+      tenantName?: string;
+    }): AuthActionResult => {
+      const result = registerService(input);
+      if (result.ok === false) {
+        return { ok: false, error: result.error };
+      }
+      setSession(result.session);
+      return { ok: true };
+    },
+    []
+  );
 
   const logout = useCallback(() => {
     logoutService();
@@ -59,13 +89,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: Boolean(session),
       isBootstrapping,
       login,
+      register,
       logout,
       role,
       canAccessAdmin: role ? canAccessAdmin(role) : false,
       canManageTenants: role ? canManageTenants(role) : false,
       canEditBankDatabase: role ? canEditBankDatabase(role) : false,
     };
-  }, [session, isBootstrapping, login, logout]);
+  }, [session, isBootstrapping, login, register, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
