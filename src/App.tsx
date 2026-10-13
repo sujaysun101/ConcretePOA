@@ -30,14 +30,26 @@ import { RejectionHistory } from './components/RejectionHistory';
 import { JurisdictionHistory } from './components/JurisdictionHistory';
 import { JurisdictionResults } from './components/JurisdictionResults';
 import { RejectionDiagnosisResult } from './components/RejectionDiagnosisResult';
+import { LoginPage } from './components/LoginPage';
+import { UserMenu } from './components/UserMenu';
+import { AdminPanel } from './components/AdminPanel';
+import { useAuth } from './auth/AuthContext';
 import { auditPOA, diagnoseRejection, trackJurisdictionalLaw } from './services/gemini';
 import { AuditResult, Bank, BankRequirement, RejectionDiagnosis, JurisdictionResult } from './types';
 import { cn } from './lib/utils';
+import {
+  ACCEPTED_INPUT_ATTR,
+  ACCEPTED_UPLOAD_LABEL,
+  ACCEPTED_UPLOAD_TYPES,
+  isDocxFile,
+  prepareDocument,
+} from './lib/document';
 import { BANK_REQUIREMENTS } from './constants';
 
 const PREDEFINED_BANKS: Bank[] = ['Chase', 'Wells Fargo', 'Fidelity', 'Schwab', 'Vanguard', 'Bank of America'];
 
 export default function App() {
+  const { isAuthenticated, isBootstrapping, session, canEditBankDatabase, canAccessAdmin } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [targetBank, setTargetBank] = useState<Bank | ''>('');
   const [customRules, setCustomRules] = useState('');
@@ -53,12 +65,14 @@ export default function App() {
   const [jurisdictionHistory, setJurisdictionHistory] = useState<JurisdictionResult[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showDatabase, setShowDatabase] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const [auditMode, setAuditMode] = useState<'audit' | 'diagnosis' | 'jurisdiction'>('audit');
   const [rejectionFile, setRejectionFile] = useState<File | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [dbSearchQuery, setDbSearchQuery] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [docxPreviewText, setDocxPreviewText] = useState<string | null>(null);
   
   // Custom Banks State
   const [customBanks, setCustomBanks] = useState<BankRequirement[]>([]);
@@ -135,20 +149,32 @@ export default function App() {
       const selectedFile = acceptedFiles[0];
       setFile(selectedFile);
       setError(null);
-      
-      // Create preview URL
-      const url = URL.createObjectURL(selectedFile);
-      setPreviewUrl(url);
+      setDocxPreviewText(null);
+
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+
+      if (isDocxFile(selectedFile)) {
+        setPreviewUrl(null);
+        prepareDocument(selectedFile)
+          .then((doc) => {
+            if (doc.kind === 'text') setDocxPreviewText(doc.text);
+          })
+          .catch((err) => {
+            console.error(err);
+            setError(err instanceof Error ? err.message : 'Failed to read DOCX file.');
+          });
+      } else {
+        setPreviewUrl(URL.createObjectURL(selectedFile));
+      }
     }
-  }, []);
+  }, [previewUrl]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'image/*': ['.png', '.jpg', '.jpeg']
-    },
-    multiple: false
+    accept: { ...ACCEPTED_UPLOAD_TYPES },
+    multiple: false,
   });
 
   const handleAudit = async () => {
@@ -164,23 +190,17 @@ export default function App() {
     setError(null);
 
     try {
-      const readFile = (f: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(f);
-        });
-      };
-
-      const poaBase64 = await readFile(file);
+      setProgressText(
+        isDocxFile(file) ? 'Extracting DOCX text…' : 'Reading document…'
+      );
+      const poaDocument = await prepareDocument(file);
       setAuditProgress(30);
       setProgressText('Extracting Document Logic...');
 
       if (auditMode === 'audit') {
         setAuditProgress(50);
         setProgressText(`Matching against ${targetBank} Compliance Matrix...`);
-        const auditResult = await auditPOA(poaBase64, file.type, targetBank as Bank, customRules);
+        const auditResult = await auditPOA(poaDocument, targetBank as Bank, customRules);
         setAuditProgress(90);
         setProgressText('Generating Remediation Blueprint...');
         
@@ -193,8 +213,8 @@ export default function App() {
       } else if (auditMode === 'diagnosis' && rejectionFile) {
         setAuditProgress(50);
         setProgressText('Cross-referencing Rejection Letter...');
-        const rejectionBase64 = await readFile(rejectionFile);
-        const diagnosis = await diagnoseRejection(poaBase64, file.type, rejectionBase64, rejectionFile.type);
+        const rejectionDocument = await prepareDocument(rejectionFile);
+        const diagnosis = await diagnoseRejection(poaDocument, rejectionDocument);
         setAuditProgress(90);
         setProgressText('Translating Legalese...');
         
@@ -207,7 +227,7 @@ export default function App() {
       } else if (auditMode === 'jurisdiction') {
         setAuditProgress(50);
         setProgressText('Comparing against 2026 Statutory Mandates...');
-        const jurisdictionRes = await trackJurisdictionalLaw(poaBase64, file.type);
+        const jurisdictionRes = await trackJurisdictionalLaw(poaDocument);
         setAuditProgress(90);
         setProgressText('Identifying Statutory Drift...');
         
@@ -220,7 +240,11 @@ export default function App() {
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to analyze document. Please ensure the file is clear and readable.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to analyze document. Please ensure the file is clear and readable.'
+      );
       setIsAuditing(false);
       setAuditProgress(0);
     }
@@ -274,6 +298,12 @@ export default function App() {
     setError(null);
     setShowHistory(false);
     setShowDatabase(false);
+    setShowPreview(false);
+    setDocxPreviewText(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
   };
 
   const allBankRequirements = [...BANK_REQUIREMENTS, ...customBanks];
@@ -283,22 +313,42 @@ export default function App() {
 
   const availableBanks = [...PREDEFINED_BANKS, ...customBanks.map(b => b.bank), 'Other'];
 
+  if (isBootstrapping) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-zinc-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 font-sans selection:bg-zinc-900 selection:text-white">
       {/* Header */}
       <header className="border-b border-zinc-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={reset}>
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => { reset(); setShowAdmin(false); setShowDatabase(false); setShowHistory(false); }}>
             <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
               <ShieldCheck className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-xl tracking-tight">ConcretePOA</span>
+            <div className="leading-tight">
+              <span className="font-bold text-xl tracking-tight block">ConcretePOA</span>
+              {session && (
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 hidden sm:block">
+                  {session.tenantName}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button 
               onClick={() => {
                 setShowHistory(!showHistory);
                 setShowDatabase(false);
+                setShowAdmin(false);
               }}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
@@ -306,30 +356,49 @@ export default function App() {
               )}
             >
               <History className="w-4 h-4" />
-              Audit History
+              <span className="hidden sm:inline">Audit History</span>
             </button>
-            <div className="hidden md:flex items-center gap-6 text-sm font-medium text-zinc-500 ml-4">
-              <button 
-                onClick={() => {
-                  setShowDatabase(!showDatabase);
-                  setShowHistory(false);
-                }}
-                className={cn("hover:text-zinc-900 transition-colors flex items-center gap-2", showDatabase ? "text-zinc-900" : "")}
-              >
-                <Database className="w-4 h-4" />
-                Bank Database
-              </button>
-              <a href="#" className="bg-zinc-900 text-white px-4 py-2 rounded-full hover:bg-zinc-800 transition-all">
-                Enterprise Access
-              </a>
-            </div>
+            <button 
+              onClick={() => {
+                setShowDatabase(!showDatabase);
+                setShowHistory(false);
+                setShowAdmin(false);
+              }}
+              className={cn(
+                "hidden md:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
+                showDatabase ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-100"
+              )}
+            >
+              <Database className="w-4 h-4" />
+              Bank Database
+            </button>
+            <UserMenu
+              onOpenAdmin={
+                canAccessAdmin
+                  ? () => {
+                      setShowAdmin(true);
+                      setShowHistory(false);
+                      setShowDatabase(false);
+                    }
+                  : undefined
+              }
+            />
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-12">
         <AnimatePresence mode="wait">
-          {showDatabase ? (
+          {showAdmin && canAccessAdmin ? (
+            <motion.div
+              key="admin"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <AdminPanel onBack={() => setShowAdmin(false)} />
+            </motion.div>
+          ) : showDatabase ? (
             <motion.div
               key="database"
               initial={{ opacity: 0, y: 20 }}
@@ -355,7 +424,9 @@ export default function App() {
                   </div>
                   <button 
                     onClick={() => setIsAddingBank(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-medium hover:bg-zinc-800 transition-colors"
+                    disabled={!canEditBankDatabase}
+                    title={canEditBankDatabase ? undefined : 'Tenant admin or higher required to add institutions'}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-medium hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <PlusCircle className="w-4 h-4" />
                     Add Custom Bank
@@ -639,9 +710,12 @@ export default function App() {
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setShowPreview(true);
+                                if (previewUrl || docxPreviewText) {
+                                  setShowPreview(true);
+                                }
                               }}
-                              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold hover:bg-emerald-200 transition-colors"
+                              disabled={!previewUrl && !docxPreviewText}
+                              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold hover:bg-emerald-200 transition-colors disabled:opacity-50"
                             >
                               <Eye className="w-3 h-3" />
                               Preview Document
@@ -650,7 +724,7 @@ export default function App() {
                         ) : (
                           <>
                             <p className="text-zinc-900 font-medium">Drop your POA document here</p>
-                            <p className="text-zinc-400 text-sm mt-1">PDF, PNG, or JPG (Max 10MB)</p>
+                            <p className="text-zinc-400 text-sm mt-1">{ACCEPTED_UPLOAD_LABEL}</p>
                           </>
                         )}
                       </div>
@@ -672,7 +746,7 @@ export default function App() {
                       onClick={() => {
                         const input = document.createElement('input');
                         input.type = 'file';
-                        input.accept = '.pdf,image/*';
+                        input.accept = ACCEPTED_INPUT_ATTR;
                         input.onchange = (e) => {
                           const files = (e.target as HTMLInputElement).files;
                           if (files && files.length > 0) {
@@ -695,7 +769,7 @@ export default function App() {
                           ) : (
                             <>
                               <p className="text-zinc-900 font-medium">Drop the Rejection Letter here</p>
-                              <p className="text-zinc-400 text-sm mt-1">PDF, PNG, or JPG (Max 10MB)</p>
+                              <p className="text-zinc-400 text-sm mt-1">{ACCEPTED_UPLOAD_LABEL}</p>
                             </>
                           )}
                         </div>
@@ -706,7 +780,7 @@ export default function App() {
 
                 {/* Preview Modal */}
                 <AnimatePresence>
-                  {showPreview && previewUrl && (
+                  {showPreview && (previewUrl || docxPreviewText) && (
                     <motion.div 
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -729,11 +803,15 @@ export default function App() {
                           </button>
                         </div>
                         <div className="flex-1 bg-zinc-100 p-6 overflow-auto flex items-center justify-center">
-                          {file?.type === 'application/pdf' ? (
+                          {docxPreviewText ? (
+                            <pre className="w-full h-full overflow-auto rounded-xl bg-white border border-zinc-200 p-6 text-sm text-zinc-800 whitespace-pre-wrap font-sans shadow-lg">
+                              {docxPreviewText}
+                            </pre>
+                          ) : file?.type === 'application/pdf' && previewUrl ? (
                             <iframe src={previewUrl} className="w-full h-full rounded-xl shadow-lg border border-zinc-200" />
-                          ) : (
+                          ) : previewUrl ? (
                             <img src={previewUrl} alt="POA Preview" className="max-w-full max-h-full object-contain rounded-xl shadow-lg" />
-                          )}
+                          ) : null}
                         </div>
                         <div className="p-6 border-t border-zinc-100 flex justify-end">
                           <button 

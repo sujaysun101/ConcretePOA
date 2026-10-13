@@ -4,13 +4,26 @@ import {
   jurisdictionKnowledgePreamble,
   rejectionKnowledgePreamble,
 } from "../data/knowledgeContext";
+import { documentToGeminiParts, type PreparedDocument } from "../lib/document";
 import { AuditResult, Bank, RejectionDiagnosis, JurisdictionResult } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+let ai: GoogleGenAI | null = null;
+
+function getAi(): GoogleGenAI {
+  if (!ai) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error(
+        "GEMINI_API_KEY is not set. Add it to .env.local and restart the dev server."
+      );
+    }
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+}
 
 export async function trackJurisdictionalLaw(
-  fileBase64: string,
-  mimeType: string
+  document: PreparedDocument
 ): Promise<JurisdictionResult> {
   const model = "gemini-3.1-pro-preview";
   
@@ -27,7 +40,7 @@ export async function trackJurisdictionalLaw(
     2. "Agent's Signature" Page:
        - Does the document include the mandatory "Agent's Signature" or "Agent's Acceptance" page if required by that specific state in 2026?
     3. Statutory Drift:
-       - List any specific areas where the document has become legally obsolete due to new legislation passed between the document's execution date and March 2026.
+      - List any specific areas where the document has become legally obsolete due to new legislation passed between the document's execution date and March 2026.
 
     OUTPUT:
     Return the analysis in JSON format matching the JurisdictionResult interface.
@@ -35,18 +48,13 @@ export async function trackJurisdictionalLaw(
     'overallComplianceScore' should be 0-100 based on how well it matches 2026 mandates.
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await getAi().models.generateContent({
     model,
     contents: [
       {
         parts: [
           { text: prompt },
-          {
-            inlineData: {
-              data: fileBase64.split(',')[1] || fileBase64,
-              mimeType: mimeType
-            }
-          }
+          ...documentToGeminiParts(document),
         ]
       }
     ],
@@ -106,8 +114,7 @@ export async function trackJurisdictionalLaw(
 }
 
 export async function auditPOA(
-  fileBase64: string, 
-  mimeType: string, 
+  document: PreparedDocument,
   targetBank: Bank, 
   customRules?: string
 ): Promise<AuditResult> {
@@ -145,18 +152,13 @@ export async function auditPOA(
     Return the analysis in JSON format matching the AuditResult interface.
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await getAi().models.generateContent({
     model,
     contents: [
       {
         parts: [
           { text: prompt },
-          {
-            inlineData: {
-              data: fileBase64.split(',')[1] || fileBase64,
-              mimeType: mimeType
-            }
-          }
+          ...documentToGeminiParts(document),
         ]
       }
     ],
@@ -207,10 +209,8 @@ export async function auditPOA(
 }
 
 export async function diagnoseRejection(
-  poaBase64: string,
-  poaMimeType: string,
-  rejectionBase64: string,
-  rejectionMimeType: string
+  poaDocument: PreparedDocument,
+  rejectionDocument: PreparedDocument
 ): Promise<RejectionDiagnosis> {
   const model = "gemini-3.1-pro-preview";
   
@@ -220,8 +220,8 @@ export async function diagnoseRejection(
     You are a "Rejection Diagnostic Engine" for "ConcretePOA".
     
     INPUTS:
-    1. A PDF/Image of a Rejected Power of Attorney (POA).
-    2. A PDF/Image of the Bank's Rejection Letter.
+    1. A Rejected Power of Attorney (POA) — PDF, image, or DOCX text.
+    2. The Bank's Rejection Letter — PDF, image, or DOCX text.
 
     LOGIC:
     1. Analyze the Rejection Letter for keywords like "Indemnification," "Stale," "Third Party Form," "Statutory Gift," "Super Powers," etc.
@@ -233,24 +233,16 @@ export async function diagnoseRejection(
     Return the analysis in JSON format matching the RejectionDiagnosis interface.
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await getAi().models.generateContent({
     model,
     contents: [
       {
         parts: [
           { text: prompt },
-          {
-            inlineData: {
-              data: poaBase64.split(',')[1] || poaBase64,
-              mimeType: poaMimeType
-            }
-          },
-          {
-            inlineData: {
-              data: rejectionBase64.split(',')[1] || rejectionBase64,
-              mimeType: rejectionMimeType
-            }
-          }
+          { text: '--- POA DOCUMENT ---' },
+          ...documentToGeminiParts(poaDocument),
+          { text: '--- REJECTION LETTER ---' },
+          ...documentToGeminiParts(rejectionDocument),
         ]
       }
     ],
