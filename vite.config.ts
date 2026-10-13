@@ -24,8 +24,8 @@ export default defineConfig(({mode}) => {
     server: {
       port: 3000,
       strictPort: true,
-      // IPv4 only — on Windows, "localhost" often resolves to IPv6 first and can 500; use 127.0.0.1 in the browser.
-      host: '127.0.0.1',
+      // Bind all interfaces so cloud/remote browsers can reach the app (not just localhost).
+      host: '0.0.0.0',
       open: false,
       hmr: process.env.DISABLE_HMR !== 'true',
     },
