@@ -12,11 +12,14 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
   if (!session) redirect("/sign-in");
   if (!session.orgId) return <WorkspaceGate />;
   const { id } = await params;
+  let record;
+  let failed = false;
   try {
-    const record = await getCase(session.orgId, id);
-    if (!record) notFound();
-    return <CaseReport record={record} />;
+    record = await getCase(session.orgId, id);
   } catch {
-    return <p className="text-sm text-muted-foreground">That report could not be loaded.</p>;
+    failed = true;
   }
+  if (failed) return <p className="text-sm text-muted-foreground">That report could not be loaded.</p>;
+  if (!record) notFound();
+  return <CaseReport record={record} />;
 }

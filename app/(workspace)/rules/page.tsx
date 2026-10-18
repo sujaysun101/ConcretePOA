@@ -11,10 +11,13 @@ export default async function RulesPage() {
   const session = await readSession();
   if (!session) redirect("/sign-in");
   if (!session.orgId) return <WorkspaceGate />;
+  let rules;
+  let failed = false;
   try {
-    const rules = await listRules(session.orgId);
-    return <RuleLibrary rules={rules} canAdd />;
+    rules = await listRules(session.orgId);
   } catch {
-    return <p className="text-sm text-muted-foreground">The rule library could not be loaded.</p>;
+    failed = true;
   }
+  if (failed || !rules) return <p className="text-sm text-muted-foreground">The rule library could not be loaded.</p>;
+  return <RuleLibrary rules={rules} canAdd />;
 }

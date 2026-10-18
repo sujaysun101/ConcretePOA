@@ -13,15 +13,20 @@ export default async function CasesPage() {
   const session = await readSession();
   if (!session) redirect("/sign-in");
   if (!session.orgId) return <WorkspaceGate />;
+  let cases;
+  let failed = false;
   try {
-    const cases = await listCases(session.orgId);
-    return (
-      <div className="space-y-6">
-        {cases.length === 0 && dataMode() === "postgres" ? <ImportDemo /> : null}
-        <CaseList cases={cases} canMutate />
-      </div>
-    );
+    cases = await listCases(session.orgId);
   } catch {
+    failed = true;
+  }
+  if (failed || !cases) {
     return <p className="text-sm text-muted-foreground">Case history is unavailable. Check the database connection and migration.</p>;
   }
+  return (
+    <div className="space-y-6">
+      {cases.length === 0 && dataMode() === "postgres" ? <ImportDemo /> : null}
+      <CaseList cases={cases} canMutate />
+    </div>
+  );
 }

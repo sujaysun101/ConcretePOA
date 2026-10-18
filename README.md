@@ -14,7 +14,7 @@ Catch POA rejections before the bank does. ConcretePOA is a firm workspace for r
 
 ## Stack
 
-Next.js 15 App Router, TypeScript, Tailwind CSS v4, shadcn-style UI, Lucide, Framer Motion, Clerk, Drizzle ORM, Postgres, Recharts, Anthropic.
+Next.js 16 App Router, TypeScript, Tailwind CSS v4, shadcn-style UI, Lucide, Framer Motion, Clerk, Drizzle ORM, Postgres, Recharts, Anthropic. Clerk runs in `proxy.ts` on the Node.js runtime so the session check is not compiled as an Edge Function.
 
 ## Local setup
 

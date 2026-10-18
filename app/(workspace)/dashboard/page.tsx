@@ -11,12 +11,15 @@ export default async function DashboardPage() {
   const session = await readSession();
   if (!session) redirect("/sign-in");
   if (!session.orgId) return <WorkspaceGate />;
+  let data;
+  let failed = false;
   try {
-    const data = await dashboard(session.orgId);
-    return <DashboardView data={data} />;
+    data = await dashboard(session.orgId);
   } catch {
-    return <StoreError />;
+    failed = true;
   }
+  if (failed || !data) return <StoreError />;
+  return <DashboardView data={data} />;
 }
 
 function StoreError() {
