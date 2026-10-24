@@ -1,4 +1,5 @@
 import "server-only";
+import { isProduction, validateProductionConfig } from "@/lib/env";
 
 export function clerkPublishableKey() {
   const key = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -6,7 +7,7 @@ export function clerkPublishableKey() {
 }
 
 export function aiConfigured() {
-  return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+  return Boolean(process.env.ANTHROPIC_API_KEY?.trim() || process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim());
 }
 
 export function aiModelName() {
@@ -14,6 +15,10 @@ export function aiModelName() {
 }
 
 export function dataMode(): "postgres" | "memory" {
+  if (isProduction()) {
+    validateProductionConfig();
+    return "postgres";
+  }
   return process.env.DATABASE_URL?.trim() ? "postgres" : "memory";
 }
 
