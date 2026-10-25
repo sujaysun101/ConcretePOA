@@ -1,4 +1,42 @@
-import { boolean, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+
+export const users = pgTable("users", {
+  id: text("id").primaryKey(), // Clerk User ID
+  email: text("email"),
+  platformRole: text("platform_role"),
+  disclaimerVersion: text("disclaimer_version"),
+  disclaimerAcceptedAt: timestamp("disclaimer_accepted_at", { withTimezone: true }),
+  termsVersion: text("terms_version"),
+  termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
+export const organizations = pgTable("organizations", {
+  id: text("id").primaryKey(), // Clerk Org ID
+  name: text("name").notNull(),
+  retentionDays: integer("retention_days"),
+  requireMfa: boolean("require_mfa").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
+export const memberships = pgTable(
+  "memberships",
+  {
+    orgId: text("org_id").notNull(),
+    userId: text("user_id").notNull(),
+    role: text("role").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.orgId, table.userId] }),
+    index("memberships_user_idx").on(table.userId),
+  ]
+);
 
 export const cases = pgTable(
   "cases",

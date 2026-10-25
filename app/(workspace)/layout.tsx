@@ -14,7 +14,11 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
         dataMode={dataMode()}
         orgSlot={
           publishableKey || process.env.NODE_ENV !== "production" ? (
-            <OrganizationSwitcher hidePersonal afterSelectOrganizationUrl="/dashboard" appearance={{ elements: { rootBox: "max-w-[220px]" } }} />
+            <OrganizationSwitcher
+              afterSelectPersonalUrl="/dashboard"
+              afterSelectOrganizationUrl="/dashboard"
+              appearance={{ elements: { rootBox: "max-w-[220px]" } }}
+            />
           ) : (
             <span className="text-sm text-muted-foreground">Workspace</span>
           )

@@ -19,11 +19,37 @@ const secretKey = process.env.CLERK_SECRET_KEY || undefined;
 const clerk = clerkMiddleware(
   async (auth, request) => {
     if (isPublic(request)) return;
+
+    const { userId, sessionClaims } = await auth();
+
+    // Check API authentication
     if (request.nextUrl.pathname.startsWith("/api/")) {
-      const { userId } = await auth();
-      if (!userId) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+      if (!userId) {
+        return NextResponse.json({ error: "Sign in required.", code: "unauthenticated" }, { status: 401 });
+      }
+      if (request.nextUrl.pathname.startsWith("/api/admin")) {
+        const claims = sessionClaims as Record<string, unknown> | undefined;
+        const platformRole = (claims?.platformRole as string) ?? (claims?.metadata as Record<string, unknown>)?.platformRole;
+        if (platformRole !== "admin") {
+          return NextResponse.json({ error: "Platform administrator access required.", code: "forbidden" }, { status: 403 });
+        }
+      }
       return NextResponse.next();
     }
+
+    // Platform admin route protection
+    if (request.nextUrl.pathname.startsWith("/admin")) {
+      if (!userId) {
+        await auth.protect();
+      }
+      const claims = sessionClaims as Record<string, unknown> | undefined;
+      const platformRole = (claims?.platformRole as string) ?? (claims?.metadata as Record<string, unknown>)?.platformRole;
+      if (platformRole !== "admin") {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      }
+      return NextResponse.next();
+    }
+
     await auth.protect();
   },
   {

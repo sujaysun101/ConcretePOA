@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { WorkspaceGate } from "@/components/workspace-gate";
+import { SettingsView } from "./settings-view";
 import { aiConfigured, aiModelName, clerkPublishableKey, dataMode } from "@/lib/config";
+import { normalizeOrgRole } from "@/lib/authz";
 import { readSession } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -9,31 +10,20 @@ export const metadata: Metadata = { title: "Settings" };
 export default async function SettingsPage() {
   const session = await readSession();
   if (!session) redirect("/sign-in");
-  if (!session.orgId) return <WorkspaceGate />;
-  const rows = [
-    ["Workspace id", session.orgId],
-    ["Storage", dataMode() === "postgres" ? "Postgres" : "In-memory demo"],
-    ["Model", aiConfigured() ? aiModelName() : "Sample responses — server key is not set"],
-    ["Sign-in", clerkPublishableKey() ? "Clerk keys detected" : "Clerk keyless mode in development"],
-    ["Rate limit", "10 reviews per user each minute. Upstash is used when its REST credentials are set."],
-  ];
+
+  const workspaceType = session.orgId ? "org" : "personal";
+  const workspaceId = session.orgId ?? session.userId;
+  const role = session.orgId ? normalizeOrgRole(session.orgRole) : "Individual Owner";
+
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">Settings</p>
-        <h1 className="font-serif text-4xl">How this workspace is running.</h1>
-      </div>
-      <dl className="divide-y divide-border rounded-3xl border border-border bg-card">
-        {rows.map(([term, detail]) => (
-          <div key={term} className="grid gap-1 px-5 py-4 sm:grid-cols-[180px_1fr]">
-            <dt className="text-sm font-semibold">{term}</dt>
-            <dd className="text-sm text-muted-foreground">{detail}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        Reports are an intake aid. Confirm the live statute and the institution&apos;s current form before anyone signs an affidavit from this product.
-      </p>
-    </div>
+    <SettingsView
+      workspaceType={workspaceType}
+      workspaceId={workspaceId}
+      role={role}
+      storageMode={dataMode() === "postgres" ? "PostgreSQL (Encrypted at rest)" : "In-memory demo storage"}
+      modelName={aiConfigured() ? aiModelName() : "Sample responses (Server API key not configured)"}
+      authMode={clerkPublishableKey() ? "Clerk Authentication (Active)" : "Clerk keyless mode in development"}
+      rateLimitInfo="10 reviews per minute per user (Upstash Redis in production)"
+    />
   );
 }

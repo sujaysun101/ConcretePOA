@@ -1,6 +1,7 @@
 import { analyzeUpload } from "@/lib/ai/analyze";
 import { analyzeInputSchema } from "@/lib/ai/schemas";
 import { badRequest, requireWorkspace } from "@/lib/api";
+import { authorize } from "@/lib/authz";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -9,6 +10,12 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   const { session, response } = await requireWorkspace();
   if (!session) return response;
+
+  const authz = authorize(session.scope, "case:create");
+  if (!authz.ok) {
+    return NextResponse.json({ error: authz.reason, code: authz.code }, { status: 403 });
+  }
+
   let form: FormData;
   try {
     form = await request.formData();

@@ -1,5 +1,6 @@
 import { ruleInputSchema } from "@/lib/ai/schemas";
 import { badRequest, requireWorkspace } from "@/lib/api";
+import { authorize } from "@/lib/authz";
 import { addRule, listRules } from "@/lib/store";
 import { NextResponse } from "next/server";
 
@@ -17,6 +18,12 @@ export async function GET() {
 export async function POST(request: Request) {
   const { session, response } = await requireWorkspace();
   if (!session) return response;
+
+  const authz = authorize(session.scope, "rule:write");
+  if (!authz.ok) {
+    return NextResponse.json({ error: authz.reason, code: authz.code }, { status: 403 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -26,6 +33,7 @@ export async function POST(request: Request) {
   const parsed = ruleInputSchema.safeParse(body);
   if (!parsed.success) return badRequest("Check the rule fields and try again.");
   try {
+    const currentYear = new Date().getFullYear();
     const rule = await addRule({
       id: crypto.randomUUID(),
       orgId: session.orgId,
@@ -37,7 +45,7 @@ export async function POST(request: Request) {
       severity: parsed.data.severity,
       citation: parsed.data.citation || null,
       notes: parsed.data.notes || null,
-      year: 2026,
+      year: currentYear,
       custom: true,
     });
     return NextResponse.json({ rule });

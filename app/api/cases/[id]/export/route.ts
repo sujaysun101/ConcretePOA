@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { badRequest, requireWorkspace } from "@/lib/api";
+import { authorize } from "@/lib/authz";
 import { caseToMarkdown, caseToPdf } from "@/lib/report";
 import { getCase } from "@/lib/store";
 
@@ -18,6 +19,21 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   try {
     const record = await getCase(session.orgId, parsed.data.id);
     if (!record) return badRequest("That matter is not in this workspace.", 404);
+
+    const authz = authorize(
+      session.scope,
+      "case:export",
+      {
+        ownerType: session.scope.type,
+        ownerId: session.orgId,
+        createdBy: record.userId,
+      },
+      session.userId
+    );
+    if (!authz.ok) {
+      return badRequest(authz.reason, 403);
+    }
+
     const filename = record.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "report";
     if (parsed.data.format === "md") {
       return new Response(caseToMarkdown(record), {

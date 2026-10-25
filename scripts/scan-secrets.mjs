@@ -15,6 +15,7 @@ const IGNORE_DIRS = new Set([
   ".git",
   "node_modules",
   ".next/cache",
+  ".clerk",
   "coverage",
 ]);
 
