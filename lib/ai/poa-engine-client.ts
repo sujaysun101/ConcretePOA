@@ -1,5 +1,4 @@
 import "server-only";
-import { GoogleAuth } from "google-auth-library";
 import { logger } from "@/lib/log";
 
 export function isPoaEngineConfigured(): boolean {
@@ -32,15 +31,17 @@ export async function callPoaEngine(params: {
       try {
         const credentialsJson = Buffer.from(saKeyB64, "base64").toString("utf-8");
         const credentials = JSON.parse(credentialsJson);
-        const auth = new GoogleAuth({ credentials });
-        const client = await auth.getIdTokenClient(targetUrl);
-        const idTokenHeaders = await client.getRequestHeaders(analyzeEndpoint);
-        if (idTokenHeaders && typeof idTokenHeaders === "object") {
-          for (const [key, value] of Object.entries(idTokenHeaders)) {
-            if (typeof value === "string") {
-              authHeaders[key] = value;
-            }
-          }
+        const { JWT } = await import("google-auth-library");
+        const jwtClient = new JWT({
+          email: credentials.client_email,
+          key: credentials.private_key,
+          additionalClaims: {
+            target_audience: targetUrl,
+          },
+        });
+        const authRes = await jwtClient.authorize();
+        if (authRes.id_token) {
+          authHeaders["Authorization"] = `Bearer ${authRes.id_token}`;
         }
       } catch (authErr) {
         logger.warn({
