@@ -7,8 +7,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { BANKS } from "@/lib/banks";
 import type { CaseKind } from "@/lib/types";
-import { MAX_UPLOAD_BYTES } from "@/lib/uploads";
 import { cn } from "@/lib/utils";
+
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4 MB
 
 const modes: { id: CaseKind; label: string; detail: string }[] = [
   { id: "audit", label: "Institution audit", detail: "Score a POA against one custodian's checklist." },
