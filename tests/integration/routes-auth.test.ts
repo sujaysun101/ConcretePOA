@@ -36,6 +36,11 @@ describe("API route authorization and cross-tenant isolation", () => {
   };
 
   describe("Cross-tenant isolation (Anti-probing security)", () => {
+    it("allows Alice to read her own personal matter", () => {
+      const res = authorize(alicePersonal, "case:read", aliceMatter, "user_alice");
+      expect(res.ok).toBe(true);
+    });
+
     it("returns not_found when Bob tries to read Alice's personal matter", () => {
       const res = authorize(bobPersonal, "case:read", aliceMatter);
       expect(res.ok).toBe(false);

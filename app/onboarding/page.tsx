@@ -9,5 +9,5 @@ export default async function OnboardingPage() {
   const session = await readSession();
   if (!session) redirect("/sign-in");
 
-  return <OnboardingView userId={session.userId} />;
+  return <OnboardingView />;
 }

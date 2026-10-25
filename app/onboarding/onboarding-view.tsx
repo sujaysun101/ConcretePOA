@@ -7,7 +7,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
-export function OnboardingView({ userId: _userId }: { userId: string }) {
+export function OnboardingView() {
   const router = useRouter();
   const [accepted, setAccepted] = useState(false);
   const [step, setStep] = useState<"disclaimer" | "workspace">("disclaimer");
