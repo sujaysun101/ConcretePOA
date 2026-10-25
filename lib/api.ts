@@ -50,3 +50,11 @@ export async function requireWorkspace(): Promise<
 export function badRequest(error: string, status = 400, extra?: Record<string, unknown>) {
   return NextResponse.json({ error, ...extra }, { status });
 }
+
+export function forbidden(error = "You do not have permission to perform this action.") {
+  return NextResponse.json({ error, code: "forbidden" }, { status: 403 });
+}
+
+export function notFound(error = "The requested resource could not be found.") {
+  return NextResponse.json({ error, code: "not_found" }, { status: 404 });
+}

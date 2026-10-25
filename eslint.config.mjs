@@ -6,6 +6,7 @@ const eslintConfig = [
   ...nextTs,
   {
     ignores: [
+      ".next/**",
       "playwright-report/**",
       "test-results/**",
       "public/**",

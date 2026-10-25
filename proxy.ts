@@ -10,6 +10,7 @@ const isPublic = createRouteMatcher([
   "/terms",
   "/r/(.*)",
   "/api/health",
+  "/api/cron/(.*)",
   "/api/webhooks/(.*)",
 ]);
 

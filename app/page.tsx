@@ -1,4 +1,4 @@
-import { FileSearch, Landmark, Scale } from "lucide-react";
+import { FileSearch, Landmark, Scale, Mail } from "lucide-react";
 import Link from "next/link";
 import { LandingMotion } from "@/components/landing-motion";
 import { Logo, Wordmark } from "@/components/logo";
@@ -22,6 +22,8 @@ const features = [
 ];
 
 export default function HomePage() {
+  const contactEmail = process.env.CONTACT_EMAIL || "support@concretepoa.com";
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
@@ -30,6 +32,12 @@ export default function HomePage() {
           <Wordmark />
         </Link>
         <nav className="flex items-center gap-3 text-sm font-semibold">
+          <a
+            href={`mailto:${contactEmail}?subject=ConcretePOA%20Enterprise%20Inquiry`}
+            className="hidden sm:inline-block rounded-full px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            Contact
+          </a>
           <Link href="/sign-in" className="rounded-full px-3 py-2 hover:bg-secondary">
             Sign in
           </Link>
@@ -50,9 +58,13 @@ export default function HomePage() {
               <Link href="/sign-up" className="inline-flex h-12 items-center rounded-full bg-accent px-6 font-semibold text-accent-foreground">
                 Start a firm workspace
               </Link>
-              <Link href="/sign-in" className="inline-flex h-12 items-center rounded-full border border-border bg-card px-6 font-semibold">
-                Sign in
-              </Link>
+              <a
+                href={`mailto:${contactEmail}?subject=ConcretePOA%20Enterprise%20Inquiry`}
+                className="inline-flex h-12 items-center gap-2 rounded-full border border-border bg-card px-6 font-semibold hover:bg-secondary transition-colors"
+              >
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                Contact Enterprise
+              </a>
             </div>
           </div>
           <LandingMotion className="rounded-[28px] border border-border bg-card p-5 shadow-sm">
@@ -97,6 +109,12 @@ export default function HomePage() {
             <Link href="/terms" className="hover:text-foreground">
               Terms
             </Link>
+            <a
+              href={`mailto:${contactEmail}?subject=ConcretePOA%20Support`}
+              className="hover:text-foreground"
+            >
+              Support
+            </a>
           </nav>
         </div>
       </footer>

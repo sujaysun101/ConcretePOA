@@ -103,6 +103,27 @@ export async function getCase(orgId: string, id: string): Promise<CaseRecord | n
   });
 }
 
+export async function getCaseById(id: string): Promise<CaseRecord | null> {
+  if (!databaseUrl()) {
+    const state = memory();
+    const own = state.cases.find((item) => item.id === id);
+    if (own) return own;
+    for (const d of demoCases("")) {
+      if (d.id === id) return d;
+    }
+    return null;
+  }
+  return withDb(async (db) => {
+    const rows = await db
+      .select()
+      .from(cases)
+      .where(eq(cases.id, id))
+      .limit(1);
+    const match = rows[0];
+    return match ? rowToCase(match) : null;
+  });
+}
+
 export async function saveCase(record: CaseRecord) {
   if (!databaseUrl()) {
     memory().cases.unshift(record);

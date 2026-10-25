@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, Copy, Download } from "lucide-react";
+import { Check, Copy, Download, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { AuditResult, CaseRecord, JurisdictionResult, RejectionDiagnosis } from "@/lib/types";
@@ -56,6 +57,30 @@ export function CaseReport({ record, basePath = "" }: { record: CaseRecord; base
 }
 
 function ExportBar({ record }: { record: CaseRecord }) {
+  const [sharing, setSharing] = useState(false);
+
+  async function share() {
+    setSharing(true);
+    try {
+      const res = await fetch(`/api/cases/${record.id}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expiresInDays: 7 }),
+      });
+      const data = await res.json();
+      if (data.share?.url) {
+        await navigator.clipboard.writeText(data.share.url);
+        toast.success("Share link copied to clipboard (valid 7 days).");
+      } else {
+        toast.error("Could not generate share link.");
+      }
+    } catch {
+      toast.error("Network error while generating share link.");
+    } finally {
+      setSharing(false);
+    }
+  }
+
   async function pdf() {
     const bytes = await caseToPdf(record);
     const blob = new Blob([Uint8Array.from(bytes)], { type: "application/pdf" });
@@ -72,6 +97,9 @@ function ExportBar({ record }: { record: CaseRecord }) {
       </Button>
       <Button type="button" variant="outline" onClick={markdown}>
         <Download className="size-4" /> Export Markdown
+      </Button>
+      <Button type="button" variant="outline" onClick={share} disabled={sharing}>
+        <Share2 className="size-4" /> {sharing ? "Sharing..." : "Share Link"}
       </Button>
     </div>
   );
@@ -124,7 +152,7 @@ function AuditBody({ findings }: { findings: AuditResult }) {
         </div>
         <div className="mt-6 rounded-2xl bg-black/20 p-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-serif text-xl">Affidavit draft</h3>
+            <h3 className="font-serif text-xl">Affidavit draft (For Attorney Review)</h3>
             <CopyButton text={findings.remediationBlueprint.affidavitTemplate} />
           </div>
           <pre className="mt-3 whitespace-pre-wrap font-mono text-xs leading-relaxed text-primary-foreground/80">{findings.remediationBlueprint.affidavitTemplate}</pre>
