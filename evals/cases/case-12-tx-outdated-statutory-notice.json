@@ -1,0 +1,13 @@
+{
+  "id": "case-12-tx-outdated-statutory-notice",
+  "name": "Texas POA Missing 2017 Updated Statutory Notice",
+  "mode": "jurisdiction",
+  "state": "TX",
+  "description": "Texas statutory durable POA that omits the updated disclosure notices enacted under Tex. Est. Code § 752.051.",
+  "text": "STATUTORY DURABLE POWER OF ATTORNEY - TEXAS\nPrincipal: Hank Pym, Austin, TX. Agent: Janet Van Dyne.\nOld form from 2010 lacking modern statutory warnings and agent fiduciary disclosure.\nSigned and notarized in 2024.",
+  "expectedOutcome": {
+    "maxScore": 75,
+    "mustContainRedFlag": "notice"
+  },
+  "pdfFile": "case-12-tx-outdated-statutory-notice.pdf"
+}

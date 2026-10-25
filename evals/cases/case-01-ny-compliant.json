@@ -1,0 +1,13 @@
+{
+  "id": "case-01-ny-compliant",
+  "name": "NY Statutory Short Form (Fully Compliant)",
+  "mode": "jurisdiction",
+  "state": "NY",
+  "description": "New York statutory durable POA signed, dated, acknowledged before notary, with two disinterested adult witnesses and executed agent acceptance.",
+  "text": "POWER OF ATTORNEY - NEW YORK STATUTORY SHORT FORM\nCAUTION TO THE PRINCIPAL: Your Power of Attorney is an important document. As the \"principal,\" you give the person whom you choose (your \"agent\") authority to spend your money and sell or dispose of your property during your lifetime without your telling him or her to do so.\nPrincipal: John Doe, residing at 123 Elm St, New York, NY.\nAgent: Jane Doe, residing at 456 Oak St, New York, NY.\nGrant of Authority: Full banking transactions, real estate transactions, tax matters.\nI grant my agent authority to act in accordance with New York General Obligations Law.\nDate: January 15, 2026. Signature of Principal: John Doe.\nState of New York, County of New York. On Jan 15, 2026 before me, notary public, appeared John Doe.\nWitness 1: Robert Smith, 789 Pine St, NY. Witness 2: Alice Jones, 321 Cedar St, NY. Neither is named as agent.\nAGENT'S SIGNATURE AND ACKNOWLEDGMENT: I, Jane Doe, accept my appointment as agent under this power of attorney. Signature: Jane Doe. Date: Jan 16, 2026. Notary acknowledgment for Agent attached.",
+  "expectedOutcome": {
+    "minScore": 90,
+    "expectedStatus": "compliant"
+  },
+  "pdfFile": "case-01-ny-compliant.pdf"
+}

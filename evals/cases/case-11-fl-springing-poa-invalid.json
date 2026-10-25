@@ -1,0 +1,13 @@
+{
+  "id": "case-11-fl-springing-poa-invalid",
+  "name": "Florida Springing POA Executed in 2025",
+  "mode": "jurisdiction",
+  "state": "FL",
+  "description": "Florida POA with springing clause executed after Oct 1, 2011, which is void under Fla. Stat. § 709.2108.",
+  "text": "FLORIDA POWER OF ATTORNEY\nPrincipal: Natasha Romanoff. Agent: Clint Barton.\nClause 3: \"This Power of Attorney shall become effective only upon the written certification of two licensed physicians stating I have become incapacitated (springing).\"\nDate of Execution: May 12, 2025. Two witnesses and notary.",
+  "expectedOutcome": {
+    "maxScore": 40,
+    "mustContainRedFlag": "springing"
+  },
+  "pdfFile": "case-11-fl-springing-poa-invalid.pdf"
+}

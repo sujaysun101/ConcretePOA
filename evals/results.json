@@ -1,0 +1,129 @@
+{
+  "total": 15,
+  "passed": 15,
+  "failed": 0,
+  "passRate": "100.0%",
+  "timestamp": "2026-10-25T20:47:00.104Z",
+  "results": [
+    {
+      "id": "case-01-ny-compliant",
+      "name": "NY Statutory Short Form (Fully Compliant)",
+      "mode": "jurisdiction",
+      "status": "pass",
+      "score": 41,
+      "latencyMs": 29742
+    },
+    {
+      "id": "case-02-ny-missing-agent-acceptance",
+      "name": "NY POA Missing Agent Acceptance Page",
+      "mode": "jurisdiction",
+      "status": "pass",
+      "score": 30,
+      "latencyMs": 23371
+    },
+    {
+      "id": "case-03-ny-notary-as-witness-defect",
+      "name": "NY POA Notary Signed as One of Two Witnesses",
+      "mode": "jurisdiction",
+      "status": "pass",
+      "score": 5,
+      "latencyMs": 28595
+    },
+    {
+      "id": "case-04-chase-missing-banking-powers",
+      "name": "Chase POA Missing Explicit Banking Transactions",
+      "mode": "audit",
+      "status": "pass",
+      "score": 0,
+      "latencyMs": 11413
+    },
+    {
+      "id": "case-05-fidelity-missing-indemnification",
+      "name": "Fidelity Brokerage POA Missing Agent Indemnification",
+      "mode": "audit",
+      "status": "pass",
+      "score": 20,
+      "latencyMs": 11964
+    },
+    {
+      "id": "case-06-bofa-missing-durability-clause",
+      "name": "Bank of America Non-Durable POA",
+      "mode": "audit",
+      "status": "pass",
+      "score": 25,
+      "latencyMs": 14877
+    },
+    {
+      "id": "case-07-vanguard-missing-institutional-form",
+      "name": "Vanguard Third-Party Generic POA",
+      "mode": "audit",
+      "status": "pass",
+      "score": 25,
+      "latencyMs": 13363
+    },
+    {
+      "id": "case-08-ca-compliant-statutory",
+      "name": "California Statutory Short Form (Compliant)",
+      "mode": "jurisdiction",
+      "status": "pass",
+      "score": 30,
+      "latencyMs": 24066
+    },
+    {
+      "id": "case-09-ca-unauthorized-gifting",
+      "name": "California POA Unauthorized Gifting Violation",
+      "mode": "audit",
+      "status": "pass",
+      "score": 35,
+      "latencyMs": 14583
+    },
+    {
+      "id": "case-10-fl-single-witness-defect",
+      "name": "Florida POA with Only One Subscribing Witness",
+      "mode": "jurisdiction",
+      "status": "pass",
+      "score": 5,
+      "latencyMs": 30273
+    },
+    {
+      "id": "case-11-fl-springing-poa-invalid",
+      "name": "Florida Springing POA Executed in 2025",
+      "mode": "jurisdiction",
+      "status": "pass",
+      "score": 25,
+      "latencyMs": 16485
+    },
+    {
+      "id": "case-12-tx-outdated-statutory-notice",
+      "name": "Texas POA Missing 2017 Updated Statutory Notice",
+      "mode": "jurisdiction",
+      "status": "pass",
+      "score": 20,
+      "latencyMs": 21079
+    },
+    {
+      "id": "case-13-stale-poa-staleness-friction",
+      "name": "15-Year-Old Stale POA Facing Internal Bank Friction",
+      "mode": "audit",
+      "status": "pass",
+      "score": 25,
+      "latencyMs": 13129
+    },
+    {
+      "id": "case-14-rejection-missing-gifts-rider",
+      "name": "Wells Fargo Rejection Diagnosis: Missing Gifting Rider",
+      "mode": "diagnosis",
+      "status": "pass",
+      "score": null,
+      "latencyMs": 17853
+    },
+    {
+      "id": "case-15-rejection-schwab-indemnification",
+      "name": "Charles Schwab Rejection: Lack of Brokerage Indemnification",
+      "mode": "diagnosis",
+      "status": "pass",
+      "score": null,
+      "latencyMs": 14237
+    }
+  ]
+}

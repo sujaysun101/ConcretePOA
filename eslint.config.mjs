@@ -5,7 +5,15 @@ const eslintConfig = [
   ...nextVitals,
   ...nextTs,
   {
-    ignores: ["playwright-report/**", "test-results/**", "public/**", "coverage/**"],
+    ignores: [
+      "playwright-report/**",
+      "test-results/**",
+      "public/**",
+      "coverage/**",
+      "evals/**",
+      "poa-engine/**",
+      "drizzle/**",
+    ],
   },
   {
     rules: {

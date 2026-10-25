@@ -1,0 +1,13 @@
+{
+  "id": "case-03-ny-notary-as-witness-defect",
+  "name": "NY POA Notary Signed as One of Two Witnesses",
+  "mode": "jurisdiction",
+  "state": "NY",
+  "description": "NY statutory short form where the notary public also signed as one of the two mandatory witnesses.",
+  "text": "NEW YORK STATUTORY DURABLE POWER OF ATTORNEY\nPrincipal: Harold Finch. Agent: John Reese.\nSigned: March 1, 2026.\nWitness 1: Notary Public Samira Khan (serving both as notary and subscribing witness).\nWitness 2: Walter White.\nAcknowledgment before Notary Public Samira Khan.",
+  "expectedOutcome": {
+    "maxScore": 50,
+    "mustContainRedFlag": "witness"
+  },
+  "pdfFile": "case-03-ny-notary-as-witness-defect.pdf"
+}

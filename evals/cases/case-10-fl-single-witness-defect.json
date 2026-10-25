@@ -1,0 +1,13 @@
+{
+  "id": "case-10-fl-single-witness-defect",
+  "name": "Florida POA with Only One Subscribing Witness",
+  "mode": "jurisdiction",
+  "state": "FL",
+  "description": "Florida durable POA executed with only 1 witness, violating Fla. Stat. § 709.2105 mandatory 2-witness requirement.",
+  "text": "FLORIDA DURABLE POWER OF ATTORNEY\nPrincipal: Tony Stark, Miami, FL. Agent: James Rhodes.\nFull banking and financial authority.\nDate: Jan 10, 2026.\nSigned by Principal Tony Stark.\nWitness 1: Pepper Potts.\n[No second witness signature].\nState of Florida, County of Miami-Dade. Acknowledged before notary public.",
+  "expectedOutcome": {
+    "maxScore": 50,
+    "mustContainRedFlag": "witness"
+  },
+  "pdfFile": "case-10-fl-single-witness-defect.pdf"
+}

@@ -16,6 +16,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
+    "eval": "tsx --conditions=react-server scripts/run-evals.ts",
+    "eval:generate": "tsx scripts/generate-eval-cases.ts",
     "screenshot": "node scripts/screenshot.mjs"
   },
   "dependencies": {

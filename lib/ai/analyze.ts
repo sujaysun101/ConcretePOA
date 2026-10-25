@@ -1,11 +1,11 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
-import { aiConfigured, aiModelName, maxTokens } from "@/lib/config";
 import type { AuditResult, CaseKind, CaseRecord, JurisdictionResult, RejectionDiagnosis } from "@/lib/types";
-import { auditPrompt, jurisdictionPrompt, rejectionPrompt } from "@/lib/ai/prompts";
+import { auditPrompt, jurisdictionPrompt, rejectionPrompt, PROMPT_VERSION, RULE_LIBRARY_VERSION } from "@/lib/ai/prompts";
 import { consumeRateLimit } from "@/lib/ai/rate-limit";
+import { getProvider, PreparedDocument } from "@/lib/ai/provider";
+import { assertUnderSpendCeiling, recordUsageEvent } from "@/lib/ai/usage";
 import { sampleAudit, sampleJurisdiction, sampleRejection } from "@/lib/ai/samples";
-import { callPoaEngine, isPoaEngineConfigured } from "@/lib/ai/poa-engine-client";
+import { recordAuditEvent } from "@/lib/audit";
 import {
   auditResultSchema,
   jurisdictionResultSchema,
@@ -15,14 +15,15 @@ import {
   parseModelJson,
   rejectionDiagnosisSchema,
 } from "@/lib/ai/schemas";
-import { normalizeMime, MAX_UPLOAD_BYTES } from "@/lib/uploads";
+import { validateUploadedFile } from "@/lib/uploads";
 import { saveCase } from "@/lib/store";
-
-type PreparedFile = {
-  name: string;
-  mimeType: "application/pdf" | "image/png" | "image/jpeg" | "image/webp";
-  base64: string;
-};
+import {
+  AppError,
+  BadRequestError,
+  ModelOutputInvalidError,
+  RateLimitedError,
+} from "@/lib/errors";
+import { logger } from "@/lib/log";
 
 export type AnalyzeRequest = {
   userId: string;
@@ -36,54 +37,7 @@ export type AnalyzeRequest = {
 
 export type AnalyzeResponse =
   | { ok: true; record: CaseRecord; remaining: number }
-  | { ok: false; status: number; error: string; retryAfter?: number };
-
-const SYSTEM =
-  "You review powers of attorney for ConcretePOA. Return one JSON object and no markdown. Quote the uploaded document when you can. This is an informational compliance aid, not legal advice.";
-
-function fileError(file: File, label: string): string | null {
-  if (file.size <= 0) return `${label} is empty.`;
-  if (file.size > MAX_UPLOAD_BYTES) return `${label} must be 4 MB or smaller.`;
-  if (!normalizeMime(file.type)) return `${label} must be a PDF, PNG, JPEG, or WebP file.`;
-  return null;
-}
-
-async function prepare(file: File): Promise<PreparedFile> {
-  const mimeType = normalizeMime(file.type);
-  if (!mimeType) throw new Error("unsupported");
-  const bytes = Buffer.from(await file.arrayBuffer());
-  return { name: file.name.slice(0, 180), mimeType, base64: bytes.toString("base64") };
-}
-
-function contentBlock(file: PreparedFile): Anthropic.ContentBlockParam {
-  if (file.mimeType === "application/pdf") {
-    return {
-      type: "document",
-      title: file.name,
-      source: { type: "base64", media_type: "application/pdf", data: file.base64 },
-    };
-  }
-  return {
-    type: "image",
-    source: { type: "base64", media_type: file.mimeType, data: file.base64 },
-  };
-}
-
-async function complete(blocks: Anthropic.ContentBlockParam[]) {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-  if (!apiKey) return null;
-  const client = new Anthropic({ apiKey, timeout: 55_000 });
-  const message = await client.messages.create({
-    model: aiModelName(),
-    max_tokens: maxTokens(),
-    system: SYSTEM,
-    messages: [{ role: "user", content: blocks }],
-  });
-  return message.content
-    .filter((block): block is Anthropic.TextBlock => block.type === "text")
-    .map((block) => block.text)
-    .join("\n");
-}
+  | { ok: false; status: number; error: string; code?: string; retryAfter?: number };
 
 function summaryFor(mode: CaseKind, findings: AuditResult | RejectionDiagnosis | JurisdictionResult) {
   if (mode === "audit") return (findings as AuditResult).primaryRedFlags[0] ?? "Audit complete.";
@@ -93,85 +47,121 @@ function summaryFor(mode: CaseKind, findings: AuditResult | RejectionDiagnosis |
 }
 
 export async function analyzeUpload(input: AnalyzeRequest): Promise<AnalyzeResponse> {
-  const poaProblem = fileError(input.poa, "The POA");
-  if (poaProblem) return { ok: false, status: 400, error: poaProblem };
-  if (input.mode === "audit" && !input.bank?.trim()) {
-    return { ok: false, status: 400, error: "Choose a target institution." };
-  }
-  if (input.mode === "diagnosis") {
-    if (!input.rejection) return { ok: false, status: 400, error: "Upload the rejection letter." };
-    const rejectionProblem = fileError(input.rejection, "The rejection letter");
-    if (rejectionProblem) return { ok: false, status: 400, error: rejectionProblem };
-  }
-  if (input.customRules && input.customRules.length > 4000) {
-    return { ok: false, status: 400, error: "Custom rules must be 4000 characters or fewer." };
-  }
-
-  const limit = await consumeRateLimit(input.userId);
-  if (!limit.ok) {
-    return {
-      ok: false,
-      status: 429,
-      error: "Too many analyses for this account. Wait a minute and try again.",
-      retryAfter: limit.retryAfter,
-    };
-  }
-
-  const id = crypto.randomUUID();
-  let findings: AuditResult | RejectionDiagnosis | JurisdictionResult | null = null;
-  let isSample = false;
+  const startTime = Date.now();
+  let validatedPoa: Awaited<ReturnType<typeof validateUploadedFile>>;
+  let validatedRejection: Awaited<ReturnType<typeof validateUploadedFile>> | null = null;
 
   try {
-    // 1. Primary: POA Deterministic Rules Engine (Cloud Run)
-    if (isPoaEngineConfigured()) {
-      const engineResponse = await callPoaEngine({
-        poa: input.poa,
-        mode: input.mode,
-        bank: input.bank,
-        rejection: input.rejection,
-        customRules: input.customRules,
-      });
+    // 1. Upload Hardening & Magic Bytes Validation
+    validatedPoa = await validateUploadedFile(input.poa, "The POA");
 
-      if (engineResponse && typeof engineResponse === "object") {
-        if (input.mode === "audit") {
-          findings = auditResultSchema.parse(normalizeAudit(engineResponse, { id, bank: input.bank || "Other" }));
-        } else if (input.mode === "diagnosis") {
-          findings = rejectionDiagnosisSchema.parse(normalizeRejection(engineResponse, id));
-        } else {
-          findings = jurisdictionResultSchema.parse(normalizeJurisdiction(engineResponse, id));
-        }
-      }
+    if (input.mode === "audit" && !input.bank?.trim()) {
+      throw new BadRequestError("Choose a target institution.");
     }
 
-    // 2. Secondary: Anthropic Claude (if POA engine not configured or returned null)
-    if (!findings && aiConfigured()) {
-      const poa = await prepare(input.poa);
-      const blocks: Anthropic.ContentBlockParam[] = [contentBlock(poa)];
-      if (input.mode === "diagnosis" && input.rejection) {
-        blocks.push(contentBlock(await prepare(input.rejection)));
+    if (input.mode === "diagnosis") {
+      if (!input.rejection) {
+        throw new BadRequestError("Upload the rejection letter.");
       }
-      const prompt =
-        input.mode === "audit"
-          ? auditPrompt(input.bank || "Other", input.customRules)
-          : input.mode === "diagnosis"
-            ? rejectionPrompt()
-            : jurisdictionPrompt();
-      blocks.push({ type: "text", text: prompt });
-      const text = await complete(blocks);
-      if (text) {
-        const parsed = parseModelJson(text);
+      validatedRejection = await validateUploadedFile(input.rejection, "The rejection letter");
+    }
+
+    // 2. Spend Ceiling & Rate Limit Guards
+    await assertUnderSpendCeiling(0.01);
+
+    const limit = await consumeRateLimit(input.userId);
+    if (!limit.ok) {
+      throw new RateLimitedError(limit.retryAfter ?? 60, "Too many analyses for this account. Wait a minute and try again.");
+    }
+
+    const id = crypto.randomUUID();
+    let findings: AuditResult | RejectionDiagnosis | JurisdictionResult | null = null;
+    let isSample = false;
+    let usedProvider = "mock";
+    let usedModel = "unknown";
+    let inputTokens = 0;
+    let outputTokens = 0;
+
+    // 3. Provider Resolution
+    const provider = getProvider();
+    usedProvider = provider.name;
+
+    const poaDoc: PreparedDocument = {
+      name: validatedPoa.name,
+      mimeType: validatedPoa.mimeType,
+      base64: validatedPoa.base64,
+      buffer: validatedPoa.buffer,
+    };
+
+    const rejectionDoc: PreparedDocument | null = validatedRejection
+      ? {
+          name: validatedRejection.name,
+          mimeType: validatedRejection.mimeType,
+          base64: validatedRejection.base64,
+          buffer: validatedRejection.buffer,
+        }
+      : null;
+
+    let prompt =
+      input.mode === "audit"
+        ? auditPrompt(input.bank || "Other", input.customRules)
+        : input.mode === "diagnosis"
+          ? rejectionPrompt()
+          : jurisdictionPrompt();
+
+    // 4. Execution Loop with 1 Retry on Schema / Parse Failure
+    let attempts = 0;
+    const maxValidationAttempts = 2;
+    let lastValidationError: string | null = null;
+
+    while (attempts < maxValidationAttempts) {
+      attempts++;
+      try {
+        const result = await provider.complete({
+          mode: input.mode,
+          prompt,
+          poa: poaDoc,
+          rejection: rejectionDoc,
+          bank: input.bank,
+          customRules: input.customRules,
+        });
+
+        usedModel = result.model;
+        inputTokens = result.inputTokens ?? 0;
+        outputTokens = result.outputTokens ?? 0;
+
+        const parsed = parseModelJson(result.rawText);
+
         if (input.mode === "audit") {
-          findings = auditResultSchema.parse(normalizeAudit(parsed, { id, bank: input.bank || "Other" }));
+          findings = auditResultSchema.parse(
+            normalizeAudit(parsed, { id, bank: input.bank || "Other" })
+          );
         } else if (input.mode === "diagnosis") {
           findings = rejectionDiagnosisSchema.parse(normalizeRejection(parsed, id));
         } else {
           findings = jurisdictionResultSchema.parse(normalizeJurisdiction(parsed, id));
         }
+
+        // Successfully parsed and validated
+        break;
+      } catch (err: unknown) {
+        lastValidationError = err instanceof Error ? err.message : String(err);
+        if (attempts < maxValidationAttempts) {
+          logger.warn({
+            event: "model_validation_retry",
+            code: "model_output_invalid",
+            outcome: `attempt_${attempts}_failed`,
+          });
+          prompt = `${prompt}\n\nIMPORTANT: Previous output failed validation with error: ${lastValidationError}. Return strictly valid JSON matching the exact schema with all fields populated.`;
+        }
       }
     }
 
-    // 3. Fallback: Labelled sample report
     if (!findings) {
+      // In production, fail closed; in dev/test, fallback if sample allowed
+      if (process.env.NODE_ENV === "production") {
+        throw new ModelOutputInvalidError(`Model output failed schema validation: ${lastValidationError}`);
+      }
       isSample = true;
       findings =
         input.mode === "audit"
@@ -181,45 +171,102 @@ export async function analyzeUpload(input: AnalyzeRequest): Promise<AnalyzeRespo
             : sampleJurisdiction();
       findings = { ...findings, id, timestamp: Date.now() };
     }
-  } catch {
-    return { ok: false, status: 400, error: "Analysis could not be completed. Check the file and try again." };
-  }
 
-  const audit = input.mode === "audit" ? (findings as AuditResult) : null;
-  const diagnosis = input.mode === "diagnosis" ? (findings as RejectionDiagnosis) : null;
-  const jurisdiction = input.mode === "jurisdiction" ? (findings as JurisdictionResult) : null;
-  const principal = audit?.extractedData.principal || null;
-  const agent = audit?.extractedData.agent || null;
-  const state = audit?.extractedData.state || jurisdiction?.state || null;
-  const bankTarget = audit?.bankTarget || diagnosis?.bankName || input.bank || null;
-  const score = audit?.acceptanceProbability ?? jurisdiction?.overallComplianceScore ?? null;
-  const titleBase = principal || input.poa.name.replace(/\.[^.]+$/, "");
-  const record: CaseRecord = {
-    id,
-    orgId: input.orgId,
-    userId: input.userId,
-    title: bankTarget ? `${titleBase} · ${bankTarget}` : `${titleBase} · statutory review`,
-    kind: input.mode,
-    status: isSample ? "sample" : "ready",
-    bankTarget,
-    state,
-    principal,
-    agent,
-    executionDate: audit?.extractedData.date || null,
-    fileName: input.poa.name.slice(0, 180),
-    score: score === null ? null : Math.round(score),
-    summary: summaryFor(input.mode, findings),
-    findings,
-    isDemo: false,
-    isSample,
-    createdAt: new Date().toISOString(),
-  };
+    // 5. Usage Metering
+    const totalLatency = Date.now() - startTime;
+    await recordUsageEvent({
+      userId: input.userId,
+      orgId: input.orgId,
+      mode: input.mode,
+      provider: usedProvider,
+      model: usedModel,
+      inputTokens,
+      outputTokens,
+      latencyMs: totalLatency,
+      outcome: "ok",
+      attempts,
+    });
 
-  try {
+    const audit = input.mode === "audit" ? (findings as AuditResult) : null;
+    const diagnosis = input.mode === "diagnosis" ? (findings as RejectionDiagnosis) : null;
+    const jurisdiction = input.mode === "jurisdiction" ? (findings as JurisdictionResult) : null;
+    const principal = audit?.extractedData.principal || null;
+    const agent = audit?.extractedData.agent || null;
+    const state = audit?.extractedData.state || jurisdiction?.state || null;
+    const bankTarget = audit?.bankTarget || diagnosis?.bankName || input.bank || null;
+    const score = audit?.acceptanceProbability ?? jurisdiction?.overallComplianceScore ?? null;
+    const titleBase = principal || validatedPoa.name.replace(/\.[^.]+$/, "");
+
+    const record: CaseRecord = {
+      id,
+      orgId: input.orgId,
+      userId: input.userId,
+      title: bankTarget ? `${titleBase} · ${bankTarget}` : `${titleBase} · statutory review`,
+      kind: input.mode,
+      status: isSample ? "sample" : "ready",
+      bankTarget,
+      state,
+      principal,
+      agent,
+      executionDate: audit?.extractedData.date || null,
+      fileName: validatedPoa.name,
+      score: score === null ? null : Math.round(score),
+      summary: summaryFor(input.mode, findings),
+      findings,
+      isDemo: false,
+      isSample,
+      createdAt: new Date().toISOString(),
+    };
+
+    // 6. Save Case and Record Security Audit
     await saveCase(record);
-  } catch {
-    return { ok: false, status: 400, error: "The review finished but could not be saved. Try again." };
-  }
 
-  return { ok: true, record, remaining: limit.remaining };
+    await recordAuditEvent({
+      actorUserId: input.userId,
+      actorType: "user",
+      scopeType: input.orgId ? "org" : "personal",
+      scopeId: input.orgId || input.userId,
+      action: "case.create",
+      targetType: "case",
+      targetId: id,
+      metadata: {
+        mode: input.mode,
+        score: record.score,
+        promptVersion: PROMPT_VERSION,
+        ruleLibraryVersion: RULE_LIBRARY_VERSION,
+        isSample,
+      },
+    });
+
+    return { ok: true, record, remaining: limit.remaining };
+  } catch (err: unknown) {
+    const latency = Date.now() - startTime;
+    if (err instanceof AppError) {
+      await recordUsageEvent({
+        userId: input.userId,
+        orgId: input.orgId,
+        mode: input.mode,
+        provider: "unknown",
+        model: "unknown",
+        latencyMs: latency,
+        outcome: err.code === "spend_capped" ? "spend_capped" : "provider_error",
+      }).catch(() => {});
+
+      return {
+        ok: false,
+        status: err.statusCode,
+        error: err.message,
+        code: err.code,
+        retryAfter: err.retryAfter,
+      };
+    }
+
+    const message = err instanceof Error ? err.message : "Review could not be completed.";
+    return {
+      ok: false,
+      status: 400,
+      error: message,
+      code: "invalid_input",
+    };
+  }
 }

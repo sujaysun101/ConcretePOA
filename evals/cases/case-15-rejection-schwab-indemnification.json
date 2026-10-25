@@ -1,0 +1,14 @@
+{
+  "id": "case-15-rejection-schwab-indemnification",
+  "name": "Charles Schwab Rejection: Lack of Brokerage Indemnification",
+  "mode": "diagnosis",
+  "bank": "Charles Schwab",
+  "description": "Rejection diagnosis for brokerage refusal due to lack of standard indemnification and trading authorization.",
+  "text": "GENERAL POWER OF ATTORNEY\nPrincipal: Matt Murdock. Agent: Foggy Nelson.\nGrants broad financial management authority.",
+  "rejectionText": "CHARLES SCHWAB & CO., INC. - POA REVIEW DEPARTMENT\nNotice of Incomplete Power of Attorney Documentation.\nWe have reviewed the Power of Attorney for Matt Murdock. We cannot grant agent trading privileges on the brokerage account.\nReason: The document does not contain an agreement to hold Charles Schwab harmless from acts performed by the attorney-in-fact, nor does it contain margin trading authorization.",
+  "expectedOutcome": {
+    "mustContainRedFlag": "indemnif"
+  },
+  "pdfFile": "case-15-rejection-schwab-indemnification.pdf",
+  "rejectionFile": "case-15-rejection-schwab-indemnification-rejection.pdf"
+}

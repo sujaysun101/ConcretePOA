@@ -1,7 +1,24 @@
 import { z } from "zod";
+import { sanitizeEvidenceQuote } from "@/lib/ai/sanitizer";
 
-const statusSchema = z.enum(["compliant", "non-compliant", "missing"]);
-const severitySchema = z.enum(["high", "medium", "low"]);
+export const statusSchema = z.enum(["compliant", "non-compliant", "missing"]);
+export const severitySchema = z.enum(["high", "medium", "low"]);
+
+export const findingSchema = z.object({
+  rule_id: z.string().optional(),
+  title: z.string().min(1).max(200),
+  severity: severitySchema,
+  status: z.enum(["verified", "unverified"]).default("unverified"),
+  evidence: z
+    .object({
+      quote: z.string().max(300),
+      page: z.number().int().positive().optional(),
+    })
+    .nullable()
+    .optional(),
+  confidence: z.number().min(0).max(1).default(1),
+  remediation: z.string().max(4000),
+});
 
 export const auditResultSchema = z.object({
   id: z.string().min(1),
@@ -11,6 +28,7 @@ export const auditResultSchema = z.object({
   primaryRedFlags: z.array(z.string()).max(30),
   clauseAudit: z.array(z.string()).max(40),
   executionAudit: z.array(z.string()).max(40),
+  findingsList: z.array(findingSchema).optional(),
   remediationBlueprint: z.object({
     action1: z.string(),
     action2: z.string(),
@@ -33,6 +51,13 @@ export const rejectionDiagnosisSchema = z.object({
   rejectionReason: z.string(),
   legaleseTranslation: z.string(),
   poaConflictSection: z.string(),
+  evidence: z
+    .object({
+      quote: z.string().max(300),
+      page: z.number().int().positive().optional(),
+    })
+    .nullable()
+    .optional(),
   actionPlan: z.object({
     step1: z.string(),
     step2: z.string(),
@@ -46,6 +71,8 @@ export const jurisdictionResultSchema = z.object({
   timestamp: z.number(),
   state: z.string().min(1),
   statutoryYear: z.number(),
+  rulesEffectiveAsOf: z.string().optional(),
+  verification: z.enum(["verified", "unverified"]).default("unverified"),
   cautionSectionVerbatim: z.object({
     status: statusSchema,
     requiredText: z.string(),
@@ -116,6 +143,32 @@ export function normalizeAudit(raw: unknown, fallback: { id: string; bank: strin
       ? (source.extractedData as Record<string, unknown>)
       : {};
   const score = Number(source.acceptanceProbability);
+
+  const findingsListRaw = Array.isArray(source.findingsList)
+    ? source.findingsList
+    : Array.isArray(source.findings)
+      ? source.findings
+      : [];
+
+  const findingsList = findingsListRaw.map((f: unknown) => {
+    const item = f && typeof f === "object" ? (f as Record<string, unknown>) : {};
+    const ev = item.evidence && typeof item.evidence === "object" ? (item.evidence as Record<string, unknown>) : null;
+    return {
+      rule_id: item.rule_id ? clip(item.rule_id, 80) : undefined,
+      title: clip(item.title, 200) || "Audit item",
+      severity: item.severity === "high" || item.severity === "low" ? item.severity : "medium",
+      status: item.status === "verified" ? "verified" : "unverified",
+      evidence: ev
+        ? {
+            quote: sanitizeEvidenceQuote(String(ev.quote ?? "")),
+            page: typeof ev.page === "number" && ev.page > 0 ? ev.page : undefined,
+          }
+        : null,
+      confidence: typeof item.confidence === "number" ? Math.max(0, Math.min(1, item.confidence)) : 1,
+      remediation: clip(item.remediation, 2000) || "",
+    };
+  });
+
   return {
     id: clip(source.id || fallback.id, 80),
     timestamp: Number(source.timestamp) || Date.now(),
@@ -124,6 +177,7 @@ export function normalizeAudit(raw: unknown, fallback: { id: string; bank: strin
     primaryRedFlags: asStringList(source.primaryRedFlags),
     clauseAudit: asStringList(source.clauseAudit, 40),
     executionAudit: asStringList(source.executionAudit, 40),
+    ...(findingsList.length > 0 ? { findingsList } : {}),
     remediationBlueprint: {
       action1: clip(remediation.action1),
       action2: clip(remediation.action2),
@@ -135,7 +189,6 @@ export function normalizeAudit(raw: unknown, fallback: { id: string; bank: strin
       agent: clip(extracted.agent, 200),
       state: clip(extracted.state, 80),
       date: clip(extracted.date, 80),
-      ...(extracted.rawText ? { rawText: clip(extracted.rawText, 20000) } : {}),
     },
   };
 }
@@ -143,6 +196,8 @@ export function normalizeAudit(raw: unknown, fallback: { id: string; bank: strin
 export function normalizeRejection(raw: unknown, fallbackId: string) {
   const source = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const plan = source.actionPlan && typeof source.actionPlan === "object" ? (source.actionPlan as Record<string, unknown>) : {};
+  const ev = source.evidence && typeof source.evidence === "object" ? (source.evidence as Record<string, unknown>) : null;
+
   return {
     id: clip(source.id || fallbackId, 80),
     timestamp: Number(source.timestamp) || Date.now(),
@@ -150,6 +205,14 @@ export function normalizeRejection(raw: unknown, fallbackId: string) {
     rejectionReason: clip(source.rejectionReason),
     legaleseTranslation: clip(source.legaleseTranslation),
     poaConflictSection: clip(source.poaConflictSection),
+    ...(ev
+      ? {
+          evidence: {
+            quote: sanitizeEvidenceQuote(String(ev.quote ?? "")),
+            page: typeof ev.page === "number" && ev.page > 0 ? ev.page : undefined,
+          },
+        }
+      : {}),
     actionPlan: {
       step1: clip(plan.step1),
       step2: clip(plan.step2),
@@ -186,6 +249,8 @@ export function normalizeJurisdiction(raw: unknown, fallbackId: string) {
     timestamp: Number(source.timestamp) || Date.now(),
     state: clip(source.state, 80),
     statutoryYear: Number(source.statutoryYear) || 2026,
+    rulesEffectiveAsOf: clip(source.rulesEffectiveAsOf || "2026-01-01", 30),
+    verification: source.verification === "verified" ? "verified" : "unverified",
     cautionSectionVerbatim: {
       status: status(caution.status),
       requiredText: clip(caution.requiredText),

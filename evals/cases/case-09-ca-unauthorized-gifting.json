@@ -1,0 +1,14 @@
+{
+  "id": "case-09-ca-unauthorized-gifting",
+  "name": "California POA Unauthorized Gifting Violation",
+  "mode": "audit",
+  "bank": "Wells Fargo",
+  "state": "CA",
+  "description": "California POA where agent attempts large gifts and beneficiary designations without express Cal. Prob. Code § 4264 authority.",
+  "text": "CALIFORNIA DURABLE POWER OF ATTORNEY\nPrincipal: Charles Xavier. Agent: Jean Grey.\nGeneral banking authority granted.\nAgent claims authority to make $100,000 gifts and change life insurance beneficiaries, but document does not expressly grant § 4264 powers.",
+  "expectedOutcome": {
+    "maxScore": 65,
+    "mustContainRedFlag": "gift"
+  },
+  "pdfFile": "case-09-ca-unauthorized-gifting.pdf"
+}

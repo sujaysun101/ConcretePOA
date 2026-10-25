@@ -1,0 +1,13 @@
+{
+  "id": "case-02-ny-missing-agent-acceptance",
+  "name": "NY POA Missing Agent Acceptance Page",
+  "mode": "jurisdiction",
+  "state": "NY",
+  "description": "NY POA executed properly by principal but completely missing the mandatory statutory agent acceptance page.",
+  "text": "POWER OF ATTORNEY - NEW YORK\nPrincipal: Eleanor Vance. Agent: Thomas Vance.\nFull general authority granted.\nSigned and notarized on February 10, 2026.\nWitnessed by two adult witnesses: Mary Lee, Paul Walker.\n[END OF DOCUMENT - NO AGENT ACCEPTANCE ATTACHED]",
+  "expectedOutcome": {
+    "maxScore": 60,
+    "mustContainRedFlag": "agent"
+  },
+  "pdfFile": "case-02-ny-missing-agent-acceptance.pdf"
+}

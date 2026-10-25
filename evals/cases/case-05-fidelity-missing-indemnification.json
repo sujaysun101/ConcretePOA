@@ -1,0 +1,13 @@
+{
+  "id": "case-05-fidelity-missing-indemnification",
+  "name": "Fidelity Brokerage POA Missing Agent Indemnification",
+  "mode": "audit",
+  "bank": "Fidelity",
+  "description": "Broker-dealer POA submitted to Fidelity lacking custodian indemnification and arbitration consent.",
+  "text": "FINANCIAL POWER OF ATTORNEY\nPrincipal: Bruce Wayne. Agent: Alfred Pennyworth.\nAuthority over brokerage accounts, trading, margin, options.\nState of New York. Executed Dec 1, 2024.\nLacks third-party hold-harmless and indemnification clause for broker-dealer transactions.",
+  "expectedOutcome": {
+    "maxScore": 75,
+    "mustContainRedFlag": "indemnif"
+  },
+  "pdfFile": "case-05-fidelity-missing-indemnification.pdf"
+}

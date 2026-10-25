@@ -1,0 +1,13 @@
+{
+  "id": "case-06-bofa-missing-durability-clause",
+  "name": "Bank of America Non-Durable POA",
+  "mode": "audit",
+  "bank": "Bank of America",
+  "description": "POA lacking the express durability provision ('This power of attorney shall not be affected by subsequent disability or incapacity').",
+  "text": "GENERAL POWER OF ATTORNEY\nPrincipal: Clark Kent. Agent: Lois Lane.\nI grant Lois Lane power to conduct my banking affairs at Bank of America.\n[Clause states: This instrument is valid until revoked by me in writing. No durability clause included.]\nDate: Oct 5, 2023. Notarized.",
+  "expectedOutcome": {
+    "maxScore": 45,
+    "mustContainRedFlag": "durable"
+  },
+  "pdfFile": "case-06-bofa-missing-durability-clause.pdf"
+}

@@ -17,6 +17,9 @@ const IGNORE_DIRS = new Set([
   ".next/cache",
   ".clerk",
   "coverage",
+  ".venv",
+  "venv",
+  "poa-engine/.venv",
 ]);
 
 const IGNORE_FILES = new Set([

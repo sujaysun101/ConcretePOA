@@ -1,0 +1,13 @@
+{
+  "id": "case-07-vanguard-missing-institutional-form",
+  "name": "Vanguard Third-Party Generic POA",
+  "mode": "audit",
+  "bank": "Vanguard",
+  "description": "Generic third-party POA submitted to Vanguard without using Vanguard's proprietary Agent Authorization form.",
+  "text": "DURABLE FINANCIAL POWER OF ATTORNEY\nPrincipal: Peter Parker. Agent: May Parker.\nGrants general authority over mutual funds and securities accounts.\nExecuted under NY statutory provisions. Vanguard institutional form not signed.",
+  "expectedOutcome": {
+    "maxScore": 75,
+    "mustContainRedFlag": "form"
+  },
+  "pdfFile": "case-07-vanguard-missing-institutional-form.pdf"
+}

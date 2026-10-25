@@ -1,48 +1,95 @@
 import { BANK_REQUIREMENTS } from "@/lib/banks";
 
 /** Curated prompt context. This is a review rubric, not legal advice. */
-export const JURISDICTION_HINTS: Record<string, { topics: string[]; notes: string }> = {
+export const JURISDICTION_HINTS: Record<
+  string,
+  {
+    name: string;
+    topics: string[];
+    notes: string;
+    effectiveAsOf: string;
+    statuteCitation: string;
+    reviewStatus: "attorney_reviewed" | "unverified";
+  }
+> = {
   CA: {
+    name: "California",
     topics: [
-      "Statutory short form vs custom long form",
-      "Witness / notary rules depending on form type",
-      "Springing vs immediate durability wording",
-      "Agent duties and gifting / trust creation limitations where applicable",
+      "Statutory form vs attorney custom draft under Cal. Prob. Code § 4401",
+      "Witness / notary rules: either 2 adult witnesses or acknowledgment before a notary public",
+      "Springing vs immediate durability wording under § 4124",
+      "Limitations on gifting and trust creation without express statutory authority (§ 4264)",
     ],
-    notes: "California has detailed POA statutes; compare execution block to current published court / bar guidance.",
+    notes: "California has detailed POA statutes; compare execution block to current published probate code.",
+    effectiveAsOf: "2026-01-01",
+    statuteCitation: "Cal. Prob. Code §§ 4000-4545",
+    reviewStatus: "unverified",
   },
   NY: {
+    name: "New York",
     topics: [
-      "Statutory gifts rider if gifting beyond incidental gifts",
-      "Separate banking / securities institutions may require specific powers enumerated",
-      "Two disinterested witnesses for certain statutory forms",
+      "General Obligations Law § 5-1501B execution requirements: signed, dated, notarized, and witnessed by 2 adult witnesses not named as agents",
+      "Statutory gifts and hot powers under § 5-1514 (substantial gifts require express modifications or rider)",
+      "Agent acceptance and signature requirement prior to exercising authority (§ 5-1501B(2)(a))",
+      "Mandatory 'Caution to the Principal' notice wording (§ 5-1513)",
     ],
-    notes: "NY statutory short form and modifications are common friction points for broker-dealers.",
+    notes: "NY statutory short form rules updated under 2021 reform; strict adherence required by financial institutions.",
+    effectiveAsOf: "2026-01-01",
+    statuteCitation: "N.Y. Gen. Oblig. Law §§ 5-1501 to 5-1514",
+    reviewStatus: "attorney_reviewed",
   },
   FL: {
+    name: "Florida",
     topics: [
-      "Two witnesses + notary for durable POA execution (typical pattern)",
-      "Specific super-powers (certain trust / beneficiary changes) if granted",
-      "Agent acceptance / authority acknowledgment where used",
+      "Execution formalities: Fla. Stat. § 709.2105 requires signature before 2 subscribing witnesses AND notary acknowledgment",
+      "Specific 'Superpowers' under § 709.2202 (trust creation, beneficiary designation, gifting) require separate initials or express signed grant",
+      "Immediate effectiveness: springing POAs prohibited under Florida law since October 1, 2011 (except military)",
+      "Third-party acceptance rules under § 709.2120",
     ],
-    notes: "Florida institutions often scrutinize witness count and notary block.",
+    notes: "Florida institutions heavily scrutinize witness signatures, notary seal, and superpower initials.",
+    effectiveAsOf: "2026-01-01",
+    statuteCitation: "Fla. Stat. §§ 709.2101-709.2402",
+    reviewStatus: "unverified",
   },
   TX: {
+    name: "Texas",
     topics: [
-      "Statutory durable POA notices to principal",
-      "Specific grants for real property vs financial accounts",
-      "Recording when used for real estate",
+      "Statutory Durable Power of Attorney Act under Tex. Est. Code Ann. § 751",
+      "Mandatory Notice to Principal and Information for Agent under § 752.051",
+      "Immediate vs springing upon incapacity designation (§ 751.0021)",
+      "Express authority for hot powers / gifts (§ 751.031)",
+      "Mandatory acceptance rules for financial institutions under § 751.201",
     ],
-    notes: "Texas durable POA notices are a common statutory drift vector.",
+    notes: "Texas requires specific statutory disclosure language; third parties face statutory penalties for refusal.",
+    effectiveAsOf: "2026-01-01",
+    statuteCitation: "Tex. Estates Code §§ 751.001-752.152",
+    reviewStatus: "unverified",
+  },
+  UPOAA: {
+    name: "Uniform Power of Attorney Act (Model)",
+    topics: [
+      "Default durability unless document expressly provides for termination upon incapacity (§ 104)",
+      "Hot powers (§ 201) require express grant: creating/amending living trusts, gifting, beneficiary designations, survivorship rights",
+      "Agent duties and fiduciary standards under § 114",
+      "Statutory protections for third parties and mandatory acceptance timeframes (§§ 119-120)",
+    ],
+    notes: "Adopted by 30+ states with minor local adaptations. Serves as baseline for multi-state uniform evaluation.",
+    effectiveAsOf: "2026-01-01",
+    statuteCitation: "Uniform Power of Attorney Act (2006/2021 revisions)",
+    reviewStatus: "unverified",
   },
   Generic: {
+    name: "Multi-jurisdiction Baseline",
     topics: [
-      "Identify governing law clause",
+      "Identify governing law and state jurisdiction clause",
       "Principal / agent / successor naming clarity",
       "Durability language and effective date",
       "Notary + witness integrity",
     ],
     notes: "Use when state is unknown or document lists multiple jurisdictions.",
+    effectiveAsOf: "2026-01-01",
+    statuteCitation: "Common Law & Uniform Statutory Principles",
+    reviewStatus: "unverified",
   },
 };
 
@@ -101,9 +148,8 @@ ${FEW_SHOT_AUDIT_EXAMPLES}
 
 export function rejectionKnowledgePreamble(): string {
   return `
-INSTITUTIONAL RUBRIC (for mapping bank jargon to POA sections):
-${bankRubricJson()}
-
-Map rejection-letter phrases (gifting, third-party form, stale, indemnification, medallion, etc.) to concrete sections in the POA.
+REJECTION DIAGNOSIS KNOWLEDGE:
+Institutional policies frequently reject general POAs for lack of explicit enumeration (e.g., banking powers, gifting, beneficiary designations).
+Always tie rejection reasons back to the specific statutory or institutional requirements.
 `.trim();
 }

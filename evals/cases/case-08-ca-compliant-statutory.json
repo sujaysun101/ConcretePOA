@@ -1,0 +1,13 @@
+{
+  "id": "case-08-ca-compliant-statutory",
+  "name": "California Statutory Short Form (Compliant)",
+  "mode": "jurisdiction",
+  "state": "CA",
+  "description": "California Uniform Statutory Form Power of Attorney (Cal. Prob. Code § 4401) acknowledged before notary public.",
+  "text": "UNIFORM STATUTORY FORM POWER OF ATTORNEY (CALIFORNIA PROBATE CODE SECTION 4401)\nNOTICE: THE POWERS GRANTED BY THIS DOCUMENT ARE BROAD AND SWEEPING.\nPrincipal: Diana Prince, Los Angeles, CA.\nAgent: Steve Trevor, Los Angeles, CA.\nGrant of authority: Real estate, tangible personal property, banking and financial institution transactions, business operations.\nThis power of attorney is durable and will continue to be effective if I become disabled, incapacitated, or incompetent.\nDate: Jan 20, 2026.\nState of California, County of Los Angeles. Subscribed and sworn to before me on Jan 20, 2026 by Diana Prince. Notary Public Seal.",
+  "expectedOutcome": {
+    "minScore": 90,
+    "expectedStatus": "compliant"
+  },
+  "pdfFile": "case-08-ca-compliant-statutory.pdf"
+}

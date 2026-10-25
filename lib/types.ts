@@ -2,6 +2,19 @@ export type CaseKind = "audit" | "diagnosis" | "jurisdiction";
 export type Severity = "high" | "medium" | "low";
 export type ComplianceStatus = "compliant" | "non-compliant" | "missing";
 
+export interface Finding {
+  rule_id?: string;
+  title: string;
+  severity: Severity;
+  status: "verified" | "unverified";
+  evidence?: {
+    quote: string;
+    page?: number;
+  } | null;
+  confidence: number;
+  remediation: string;
+}
+
 export interface AuditResult {
   id: string;
   timestamp: number;
@@ -10,6 +23,7 @@ export interface AuditResult {
   primaryRedFlags: string[];
   clauseAudit: string[];
   executionAudit: string[];
+  findingsList?: Finding[];
   remediationBlueprint: {
     action1: string;
     action2: string;
@@ -32,6 +46,10 @@ export interface RejectionDiagnosis {
   rejectionReason: string;
   legaleseTranslation: string;
   poaConflictSection: string;
+  evidence?: {
+    quote: string;
+    page?: number;
+  } | null;
   actionPlan: {
     step1: string;
     step2: string;
@@ -45,6 +63,8 @@ export interface JurisdictionResult {
   timestamp: number;
   state: string;
   statutoryYear: number;
+  rulesEffectiveAsOf?: string;
+  verification?: "verified" | "unverified";
   cautionSectionVerbatim: {
     status: ComplianceStatus;
     requiredText: string;

@@ -1,0 +1,14 @@
+{
+  "id": "case-14-rejection-missing-gifts-rider",
+  "name": "Wells Fargo Rejection Diagnosis: Missing Gifting Rider",
+  "mode": "diagnosis",
+  "bank": "Wells Fargo",
+  "description": "Rejection diagnosis matching bank's notice of rejection regarding lack of express gifting authority.",
+  "text": "POWER OF ATTORNEY\nPrincipal: Luke Skywalker. Agent: Leia Organa.\nGeneral power over banking transactions. No statutory gifts rider attached.",
+  "rejectionText": "WELLS FARGO LEGAL ORDER PROCESSING - NOTICE OF REFUSAL\nAccount Holder: Luke Skywalker.\nWe cannot honor the Power of Attorney dated Jan 10, 2025 for requested gifting transfer.\nReason: Under New York General Obligations Law § 5-1514 and Wells Fargo policy, authority to make gifts in excess of $5,000 annually requires an express Statutory Gifts Rider or modification.",
+  "expectedOutcome": {
+    "mustContainRedFlag": "gift"
+  },
+  "pdfFile": "case-14-rejection-missing-gifts-rider.pdf",
+  "rejectionFile": "case-14-rejection-missing-gifts-rider-rejection.pdf"
+}

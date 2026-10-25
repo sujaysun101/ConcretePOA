@@ -1,0 +1,13 @@
+{
+  "id": "case-04-chase-missing-banking-powers",
+  "name": "Chase POA Missing Explicit Banking Transactions",
+  "mode": "audit",
+  "bank": "Chase",
+  "description": "General POA submitted to JPMorgan Chase that only grants 'all general powers' without specifying banking transactions.",
+  "text": "GENERAL POWER OF ATTORNEY\nI, Arthur Dent, grant my agent Ford Prefect full general power of attorney over all my affairs and property worldwide.\nExecuted under NY law on Jan 10, 2025. Notarized and witnessed.\nNo specific banking transaction clauses included.",
+  "expectedOutcome": {
+    "maxScore": 70,
+    "mustContainRedFlag": "banking"
+  },
+  "pdfFile": "case-04-chase-missing-banking-powers.pdf"
+}

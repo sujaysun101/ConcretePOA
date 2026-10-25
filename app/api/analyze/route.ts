@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   });
   if (!result.ok) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, code: result.code },
       { status: result.status, headers: result.retryAfter ? { "Retry-After": String(result.retryAfter) } : undefined },
     );
   }

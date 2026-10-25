@@ -1,0 +1,13 @@
+{
+  "id": "case-13-stale-poa-staleness-friction",
+  "name": "15-Year-Old Stale POA Facing Internal Bank Friction",
+  "mode": "audit",
+  "bank": "Wells Fargo",
+  "description": "Legally valid durable POA executed in 2011, but facing high friction due to bank's 5-year staleness policy.",
+  "text": "DURABLE POWER OF ATTORNEY\nPrincipal: Barry Allen. Agent: Iris West.\nExecuted under Ohio law on October 4, 2011.\nProperly notarized and witnessed.\nPresented to Wells Fargo in 2026 (15 years old).",
+  "expectedOutcome": {
+    "maxScore": 70,
+    "mustContainRedFlag": "stale"
+  },
+  "pdfFile": "case-13-stale-poa-staleness-friction.pdf"
+}
