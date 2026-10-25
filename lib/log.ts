@@ -7,7 +7,7 @@ export interface StructuredLogPayload {
   requestId?: string;
   userIdHash?: string;
   orgId?: string;
-  scopeType?: "personal" | "org" | "system";
+  scopeType?: "personal" | "org" | "platform" | "system";
   caseId?: string;
   ruleId?: string;
   durationMs?: number;

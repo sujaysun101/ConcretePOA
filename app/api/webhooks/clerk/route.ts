@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { eq, and } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { users, organizations, memberships, cases } from "@/lib/db/schema";
+import { encryptField, hashAuditValue } from "@/lib/crypto";
 import { logger } from "@/lib/log";
 
 export const runtime = "nodejs";
@@ -63,18 +64,23 @@ export async function POST(req: Request) {
       const publicMetadata = (data.public_metadata as Record<string, unknown>) ?? {};
       const platformRole = (publicMetadata.platformRole as string) ?? null;
 
+      const emailHash = primaryEmail ? hashAuditValue(primaryEmail) : null;
+      const emailEnc = primaryEmail ? encryptField(primaryEmail) : null;
+
       await db
         .insert(users)
         .values({
           id: userId,
-          email: primaryEmail,
+          emailHash,
+          emailEnc,
           platformRole,
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
           target: users.id,
           set: {
-            email: primaryEmail,
+            emailHash,
+            emailEnc,
             platformRole,
             updatedAt: new Date(),
             deletedAt: null,

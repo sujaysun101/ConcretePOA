@@ -12,7 +12,9 @@ export type Permission =
   | "org:members"
   | "org:settings"
   | "audit:read"
-  | "admin:*";
+  | "admin:*"
+  | "data:export_self"
+  | "account:delete_self";
 
 export type AuthScope =
   | { type: "personal"; ownerId: string }
@@ -91,6 +93,10 @@ export function authorize(
         return { ok: true };
       case "org:members":
       case "org:settings":
+        return { ok: false, code: "forbidden", reason: "Action not supported in personal workspaces." };
+      case "data:export_self":
+      case "account:delete_self":
+        return { ok: true };
       case "admin:*":
         return { ok: false, code: "forbidden", reason: "Action not supported in personal workspaces." };
       default:
@@ -176,6 +182,10 @@ export function authorize(
         code: "forbidden",
         reason: "Only organization administrators can access the workspace audit log.",
       };
+
+    case "data:export_self":
+    case "account:delete_self":
+      return { ok: true };
 
     case "admin:*":
       return { ok: false, code: "forbidden", reason: "Platform administrator access required." };

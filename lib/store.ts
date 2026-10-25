@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { databaseUrl, getDb } from "@/lib/db";
-import { cases, rules } from "@/lib/db/schema";
+import { cases, rules, users } from "@/lib/db/schema";
 import { demoCases } from "@/lib/demo-data";
 import { builtinRules } from "@/lib/library";
 import { buildDashboard } from "@/lib/metrics";
@@ -56,41 +56,39 @@ function rowToCase(row: typeof cases.$inferSelect): CaseRecord {
 function rowToRule(row: typeof rules.$inferSelect): RuleRecord {
   return {
     id: row.id,
-    orgId: row.orgId,
-    scope: row.scope === "institution" ? "institution" : "jurisdiction",
-    jurisdiction: row.jurisdiction,
-    institution: row.institution,
+    orgId: row.orgId ?? null,
+    scope: (row.scope as "jurisdiction" | "institution") ?? "jurisdiction",
+    jurisdiction: row.jurisdiction ?? null,
+    institution: row.institution ?? null,
     topic: row.topic,
     requirement: row.requirement,
-    severity: row.severity === "high" || row.severity === "low" ? row.severity : "medium",
-    citation: row.citation,
-    notes: row.notes,
-    year: row.year,
+    severity: (row.severity as "high" | "medium" | "low") ?? "medium",
+    citation: row.citation ?? null,
+    notes: row.notes ?? null,
+    year: row.year ?? null,
     custom: row.custom,
   };
 }
 
-async function withDb<T>(run: (db: NonNullable<ReturnType<typeof getDb>>) => Promise<T>) {
+async function withDb<T>(action: (db: NonNullable<ReturnType<typeof getDb>>) => Promise<T>): Promise<T> {
   const db = getDb();
   if (!db) throw new Error("NO_DATABASE");
-  try {
-    return await run(db);
-  } catch (error) {
-    if (error instanceof Error && error.message === "NO_DATABASE") throw error;
-    console.error("case store query failed");
-    throw new Error("CASE_STORE_UNAVAILABLE");
-  }
+  return action(db);
 }
 
-export async function listCases(orgId: string) {
+export async function listCases(orgId: string): Promise<CaseRecord[]> {
   if (!databaseUrl()) return memoryCases(orgId);
   return withDb(async (db) => {
-    const rows = await db.select().from(cases).where(eq(cases.orgId, orgId)).orderBy(desc(cases.createdAt)).limit(500);
+    const rows = await db
+      .select()
+      .from(cases)
+      .where(eq(cases.orgId, orgId))
+      .orderBy(desc(cases.createdAt));
     return rows.map(rowToCase);
   });
 }
 
-export async function getCase(orgId: string, id: string) {
+export async function getCase(orgId: string, id: string): Promise<CaseRecord | null> {
   if (!databaseUrl()) {
     return memoryCases(orgId).find((item) => item.id === id) ?? null;
   }
@@ -100,14 +98,14 @@ export async function getCase(orgId: string, id: string) {
       .from(cases)
       .where(and(eq(cases.orgId, orgId), eq(cases.id, id)))
       .limit(1);
-    return rows[0] ? rowToCase(rows[0]) : null;
+    const match = rows[0];
+    return match ? rowToCase(match) : null;
   });
 }
 
 export async function saveCase(record: CaseRecord) {
   if (!databaseUrl()) {
-    const state = memory();
-    state.cases = [record, ...state.cases.filter((item) => item.id !== record.id)];
+    memory().cases.unshift(record);
     return record;
   }
   await withDb(async (db) => {
@@ -166,6 +164,16 @@ export async function listRules(orgId: string) {
   return [...builtins, ...custom];
 }
 
+export async function getRule(id: string): Promise<RuleRecord | null> {
+  if (!databaseUrl()) {
+    return memory().rules.find((r) => r.id === id) ?? builtinRules().find((r) => r.id === id) ?? null;
+  }
+  return withDb(async (db) => {
+    const rows = await db.select().from(rules).where(eq(rules.id, id)).limit(1);
+    return rows[0] ? rowToRule(rows[0]) : null;
+  });
+}
+
 export async function addRule(record: RuleRecord) {
   if (!record.orgId) throw new Error("CASE_STORE_UNAVAILABLE");
   if (!databaseUrl()) {
@@ -189,6 +197,62 @@ export async function addRule(record: RuleRecord) {
     });
   });
   return record;
+}
+
+export async function updateRule(id: string, updates: Partial<RuleRecord>) {
+  if (!databaseUrl()) {
+    const rule = memory().rules.find((r) => r.id === id);
+    if (!rule) throw new Error("Rule not found");
+    Object.assign(rule, updates);
+    return rule;
+  }
+  return withDb(async (db) => {
+    await db
+      .update(rules)
+      .set({
+        topic: updates.topic,
+        requirement: updates.requirement,
+        severity: updates.severity,
+        citation: updates.citation,
+        notes: updates.notes,
+        jurisdiction: updates.jurisdiction,
+        institution: updates.institution,
+      })
+      .where(eq(rules.id, id));
+    const updated = await getRule(id);
+    return updated;
+  });
+}
+
+export async function deleteRule(id: string) {
+  if (!databaseUrl()) {
+    memory().rules = memory().rules.filter((r) => r.id !== id);
+    return;
+  }
+  await withDb(async (db) => {
+    await db.delete(rules).where(eq(rules.id, id));
+  });
+}
+
+export async function getCasesForExport(userId: string): Promise<CaseRecord[]> {
+  if (!databaseUrl()) {
+    return memory().cases.filter((c) => c.userId === userId);
+  }
+  return withDb(async (db) => {
+    const rows = await db.select().from(cases).where(eq(cases.userId, userId));
+    return rows.map(rowToCase);
+  });
+}
+
+export async function purgeUserData(userId: string): Promise<void> {
+  if (!databaseUrl()) {
+    memory().cases = memory().cases.filter((c) => c.userId !== userId);
+    return;
+  }
+  await withDb(async (db) => {
+    await db.delete(cases).where(eq(cases.userId, userId));
+    await db.delete(users).where(eq(users.id, userId));
+  });
 }
 
 export async function importDemoCases(orgId: string, userId: string) {
