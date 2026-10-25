@@ -1,0 +1,73 @@
+# New York Statutory Power of Attorney Rules Engine Configuration
+# Governed primarily by NY General Obligations Law (GOL) Article 5, Title 15
+# Every statutory citation includes a # VERIFY comment for attorney review.
+
+jurisdiction: New York
+effective_statute_year: 2021 # VERIFY: NY GOL Chapter 323 Laws of 2020 / Chapter 84 Laws of 2021 effective June 13, 2021
+
+rules:
+  - id: NY-EXEC-001
+    title: Mandatory Caution to the Principal Notice
+    citation: NY GOL § 5-1513(1)(a) # VERIFY: Must contain the statutory "CAUTION TO THE PRINCIPAL" wording substantially conforming to § 5-1513
+    severity: blocker
+    check_type: statutory_caution
+    description: >
+      Under NY GOL § 5-1513, a valid statutory short form power of attorney must contain the prescribed
+      "CAUTION TO THE PRINCIPAL" verbatim or substantially conforming notice warning the principal of the powers granted.
+    remediation: >
+      Draft and incorporate the full statutory Caution to the Principal notice set forth in NY GOL § 5-1513(1)(a).
+
+  - id: NY-EXEC-002
+    title: Mandatory Dual Disinterested Witnesses
+    citation: NY GOL § 5-1501B(1)(b) # VERIFY: POA must be signed and dated by two persons not named as agents or permissible gift recipients
+    severity: blocker
+    check_type: witness_execution
+    description: >
+      NY GOL § 5-1501B(1)(b) requires that the principal sign in the presence of two witnesses who are not named
+      as agents or alternate agents, nor permissible recipients of gifts. One witness may also serve as the notary.
+    remediation: >
+      Execute the instrument before two adult, disinterested witnesses who sign and date the document.
+
+  - id: NY-EXEC-003
+    title: Notarial Acknowledgment of Principal Execution
+    citation: NY GOL § 5-1501B(1)(a) # VERIFY: Principal signature must be acknowledged in the manner required for the recording of a conveyance of real property
+    severity: blocker
+    check_type: principal_acknowledgment
+    description: >
+      The principal's signature must be acknowledged before a notary public in the exact manner prescribed for
+      recording deeds in New York under Real Property Law § 309-a.
+    remediation: >
+      Complete a formal New York statutory notarial certificate of acknowledgment before a licensed notary public.
+
+  - id: NY-EXEC-004
+    title: Mandatory Agent Acceptance and Acknowledgment
+    citation: NY GOL § 5-1501B(2) # VERIFY: Agent must sign and acknowledge the statutory acceptance before acting
+    severity: blocker
+    check_type: agent_acceptance
+    description: >
+      Under NY GOL § 5-1501B(2), the power of attorney is not effective with respect to an agent until that agent
+      has signed the statutory agent notice and their signature is formally acknowledged by a notary public.
+    remediation: >
+      Ensure the primary agent executes the statutory "Important Information for the Agent" acknowledgment before a notary.
+
+  - id: NY-EXEC-005
+    title: Statutory Modifications and Gifting Authorization
+    citation: NY GOL § 5-1514 # VERIFY: 2021 NY law eliminated the separate Statutory Gifts Rider (SGR); gifts exceeding $5,000/year require express authorization in Modifications
+    severity: warning
+    check_type: gifting_modification
+    description: >
+      Following the 2021 amendments, gifts exceeding the statutory baseline ($5,000 aggregate per year under § 5-1502I)
+      or gifts to the agent must be explicitly authorized within the Modifications section of the form.
+    remediation: >
+      If gifting authority or self-dealing is intended, confirm specific, customized terms are drafted in the Modifications section.
+
+  - id: NY-EXEC-006
+    title: Springing Incapacity Determination Mechanism
+    citation: NY GOL § 5-1501B(3) # VERIFY: Springing powers require an unambiguous written certification mechanism or physician trigger
+    severity: warning
+    check_type: springing_trigger
+    description: >
+      If the power of attorney is springing upon incapacity rather than immediate, NY law and institutional compliance
+      require a defined, objective trigger (such as two attending physicians or a named monitoring committee) to avoid bank refusal.
+    remediation: >
+      Provide unambiguous, objective incapacity determination criteria and physician certification procedures.

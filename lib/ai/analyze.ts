@@ -5,6 +5,7 @@ import type { AuditResult, CaseKind, CaseRecord, JurisdictionResult, RejectionDi
 import { auditPrompt, jurisdictionPrompt, rejectionPrompt } from "@/lib/ai/prompts";
 import { consumeRateLimit } from "@/lib/ai/rate-limit";
 import { sampleAudit, sampleJurisdiction, sampleRejection } from "@/lib/ai/samples";
+import { callPoaEngine, isPoaEngineConfigured } from "@/lib/ai/poa-engine-client";
 import {
   auditResultSchema,
   jurisdictionResultSchema,
@@ -117,20 +118,33 @@ export async function analyzeUpload(input: AnalyzeRequest): Promise<AnalyzeRespo
   }
 
   const id = crypto.randomUUID();
-  let findings: AuditResult | RejectionDiagnosis | JurisdictionResult;
+  let findings: AuditResult | RejectionDiagnosis | JurisdictionResult | null = null;
   let isSample = false;
 
   try {
-    if (!aiConfigured()) {
-      isSample = true;
-      findings =
-        input.mode === "audit"
-          ? sampleAudit(input.bank || "Other")
-          : input.mode === "diagnosis"
-            ? sampleRejection()
-            : sampleJurisdiction();
-      findings = { ...findings, id, timestamp: Date.now() };
-    } else {
+    // 1. Primary: POA Deterministic Rules Engine (Cloud Run)
+    if (isPoaEngineConfigured()) {
+      const engineResponse = await callPoaEngine({
+        poa: input.poa,
+        mode: input.mode,
+        bank: input.bank,
+        rejection: input.rejection,
+        customRules: input.customRules,
+      });
+
+      if (engineResponse && typeof engineResponse === "object") {
+        if (input.mode === "audit") {
+          findings = auditResultSchema.parse(normalizeAudit(engineResponse, { id, bank: input.bank || "Other" }));
+        } else if (input.mode === "diagnosis") {
+          findings = rejectionDiagnosisSchema.parse(normalizeRejection(engineResponse, id));
+        } else {
+          findings = jurisdictionResultSchema.parse(normalizeJurisdiction(engineResponse, id));
+        }
+      }
+    }
+
+    // 2. Secondary: Anthropic Claude (if POA engine not configured or returned null)
+    if (!findings && aiConfigured()) {
       const poa = await prepare(input.poa);
       const blocks: Anthropic.ContentBlockParam[] = [contentBlock(poa)];
       if (input.mode === "diagnosis" && input.rejection) {
@@ -144,17 +158,28 @@ export async function analyzeUpload(input: AnalyzeRequest): Promise<AnalyzeRespo
             : jurisdictionPrompt();
       blocks.push({ type: "text", text: prompt });
       const text = await complete(blocks);
-      if (!text) {
-        return { ok: false, status: 400, error: "Analysis could not be completed. Try a clearer PDF." };
+      if (text) {
+        const parsed = parseModelJson(text);
+        if (input.mode === "audit") {
+          findings = auditResultSchema.parse(normalizeAudit(parsed, { id, bank: input.bank || "Other" }));
+        } else if (input.mode === "diagnosis") {
+          findings = rejectionDiagnosisSchema.parse(normalizeRejection(parsed, id));
+        } else {
+          findings = jurisdictionResultSchema.parse(normalizeJurisdiction(parsed, id));
+        }
       }
-      const parsed = parseModelJson(text);
-      if (input.mode === "audit") {
-        findings = auditResultSchema.parse(normalizeAudit(parsed, { id, bank: input.bank || "Other" }));
-      } else if (input.mode === "diagnosis") {
-        findings = rejectionDiagnosisSchema.parse(normalizeRejection(parsed, id));
-      } else {
-        findings = jurisdictionResultSchema.parse(normalizeJurisdiction(parsed, id));
-      }
+    }
+
+    // 3. Fallback: Labelled sample report
+    if (!findings) {
+      isSample = true;
+      findings =
+        input.mode === "audit"
+          ? sampleAudit(input.bank || "Other")
+          : input.mode === "diagnosis"
+            ? sampleRejection()
+            : sampleJurisdiction();
+      findings = { ...findings, id, timestamp: Date.now() };
     }
   } catch {
     return { ok: false, status: 400, error: "Analysis could not be completed. Check the file and try again." };
