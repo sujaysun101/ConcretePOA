@@ -21,7 +21,7 @@
     "screenshot": "node scripts/screenshot.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.67.0",
+    "@anthropic-ai/sdk": "^1.1.0",
     "@clerk/nextjs": "^6.33.0",
     "@radix-ui/react-slot": "^1.2.3",
     "@sentry/nextjs": "^11.9.0",
