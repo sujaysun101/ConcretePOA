@@ -40,8 +40,8 @@ jobs:
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
-          # Dummy values for build validation
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_YnVpbGQtdmFsaWRhdGlvbi1rZXkk
+          # Valid domain-shaped dummy key for build validation in CI
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_YnVpbGQtdmFsaWRhdGlvbi5jbGVyay5hY2NvdW50cy5kZXYk
           CLERK_SECRET_KEY: dummy_build_validation_secret_key_ci
 
       - name: Scan build output and source for secrets
