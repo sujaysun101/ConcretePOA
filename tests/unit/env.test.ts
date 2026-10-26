@@ -43,9 +43,10 @@ describe("lib/env fail-closed configuration", () => {
     );
   });
 
-  it("throws in production when Upstash Redis is missing", () => {
+  it("throws in production when Upstash Redis is missing and REQUIRE_UPSTASH_RATE_LIMIT is set", () => {
     process.env.VERCEL_ENV = "production";
     process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
+    process.env.REQUIRE_UPSTASH_RATE_LIMIT = "1";
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
     delete process.env.DEMO_SCREENSHOT;
@@ -53,6 +54,17 @@ describe("lib/env fail-closed configuration", () => {
     expect(() => validateProductionConfig()).toThrow(
       /UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required in production/
     );
+  });
+
+  it("warns and falls back gracefully in production when Upstash Redis is missing without strict flag", () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
+    delete process.env.REQUIRE_UPSTASH_RATE_LIMIT;
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    delete process.env.DEMO_SCREENSHOT;
+
+    expect(() => validateProductionConfig()).not.toThrow();
   });
 
   it("passes validation in production when all required variables are set", () => {

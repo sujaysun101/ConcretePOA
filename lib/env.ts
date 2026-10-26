@@ -46,14 +46,20 @@ export function validateProductionConfig(): void {
     );
   }
 
-  // Strict check on Upstash rate limiter in production (skip during build phase)
+  // Upstash rate limiter check in production (skip during build phase)
   if (isProd && !isBuildPhase()) {
     const redisUrl = process.env.UPSTASH_REDIS_REST_URL?.trim();
     const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
     if (!redisUrl || !redisToken) {
-      throw new Error(
-        "CONFIGURATION_ERROR: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required in production to enforce distributed rate limits."
-      );
+      if (process.env.REQUIRE_UPSTASH_RATE_LIMIT === "1") {
+        throw new Error(
+          "CONFIGURATION_ERROR: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required in production to enforce distributed rate limits."
+        );
+      } else {
+        console.warn(
+          "CONFIGURATION_WARNING: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are not configured in production; falling back to in-memory rate limiting."
+        );
+      }
     }
   }
 }
