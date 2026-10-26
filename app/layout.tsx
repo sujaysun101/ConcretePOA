@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { Fraunces, Outfit } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/components/auth-provider";
+import { clerkPublishableKey } from "@/lib/config";
 import "./globals.css";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
@@ -23,13 +25,17 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const publishableKey = clerkPublishableKey();
+
   return (
     <html lang="en" suppressHydrationWarning className={`${outfit.variable} ${fraunces.variable}`}>
       <body>
-        <ThemeProvider>
-          {children}
-          <Toaster richColors position="top-right" />
-        </ThemeProvider>
+        <AuthProvider publishableKey={publishableKey}>
+          <ThemeProvider>
+            {children}
+            <Toaster richColors position="top-right" />
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

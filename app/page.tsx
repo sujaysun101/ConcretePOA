@@ -2,6 +2,7 @@ import { FileSearch, Landmark, Scale, Mail } from "lucide-react";
 import Link from "next/link";
 import { LandingMotion } from "@/components/landing-motion";
 import { Logo, Wordmark } from "@/components/logo";
+import { readSession } from "@/lib/session";
 
 const features = [
   {
@@ -21,7 +22,9 @@ const features = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await readSession();
+  const isSignedIn = Boolean(session?.userId);
   const contactEmail = process.env.CONTACT_EMAIL || "support@concretepoa.com";
 
   return (
@@ -38,12 +41,29 @@ export default function HomePage() {
           >
             Contact
           </a>
-          <Link href="/sign-in" className="rounded-full px-3 py-2 hover:bg-secondary">
-            Sign in
-          </Link>
-          <Link href="/sign-up" className="rounded-full bg-primary px-4 py-2 text-primary-foreground">
-            Open a workspace
-          </Link>
+          {isSignedIn ? (
+            <Link
+              href="/dashboard"
+              className="rounded-full bg-primary px-4 py-2 font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              Open Workspace
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/sign-in"
+                className="rounded-full px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/sign-up"
+                className="rounded-full bg-primary px-4 py-2 font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                Open Workspace
+              </Link>
+            </>
+          )}
         </nav>
       </header>
       <main>
@@ -55,8 +75,11 @@ export default function HomePage() {
               ConcretePOA reads a power of attorney the way a custody desk will: which powers are actually granted, whether the execution block will survive the state, and what to fix before a caregiver loses a week at the branch.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/sign-up" className="inline-flex h-12 items-center rounded-full bg-accent px-6 font-semibold text-accent-foreground">
-                Start a firm workspace
+              <Link
+                href={isSignedIn ? "/dashboard" : "/sign-up"}
+                className="inline-flex h-12 items-center rounded-full bg-accent px-6 font-semibold text-accent-foreground hover:opacity-90 transition-opacity"
+              >
+                Open Workspace
               </Link>
               <a
                 href={`mailto:${contactEmail}?subject=ConcretePOA%20Enterprise%20Inquiry`}
