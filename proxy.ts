@@ -64,7 +64,7 @@ const clerk = clerkMiddleware(
 // Node.js proxy (Next.js 16). Edge middleware bundles Clerk's #crypto and
 // #safe-node-apis imports, which Vercel's Edge tracer rejects.
 // The demo gate runs before Clerk so keyless dev (no publishable key) cannot skip it.
-export default function proxy(request: NextRequest, event: NextFetchEvent) {
+export default async function proxy(request: NextRequest, event: NextFetchEvent) {
   if (request.nextUrl.pathname.startsWith("/demo")) {
     if (process.env.VERCEL_ENV === "production") {
       return NextResponse.redirect(new URL("/", request.url));
@@ -72,7 +72,24 @@ export default function proxy(request: NextRequest, event: NextFetchEvent) {
     if (process.env.DEMO_SCREENSHOT === "1") return NextResponse.next();
     return NextResponse.redirect(new URL("/", request.url));
   }
-  return clerk(request, event);
+  try {
+    return await clerk(request, event);
+  } catch (error) {
+    console.error("Clerk proxy verification error, handling gracefully:", error);
+    if (isPublic(request)) {
+      const response = NextResponse.next();
+      response.cookies.delete("__session");
+      response.cookies.delete("__client_uat");
+      return response;
+    }
+    if (request.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Sign in required.", code: "unauthenticated" }, { status: 401 });
+    }
+    const redirectRes = NextResponse.redirect(new URL("/sign-in", request.url));
+    redirectRes.cookies.delete("__session");
+    redirectRes.cookies.delete("__client_uat");
+    return redirectRes;
+  }
 }
 
 export const config = {
